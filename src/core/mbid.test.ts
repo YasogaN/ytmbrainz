@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'bun:test';
+import { rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { isValidMbid, MbidStore, toMbid, uuidV5 } from '@/core/mbid';
 
@@ -72,9 +73,9 @@ describe('MbidStore', () => {
       });
       second.close();
     } finally {
-      Bun.file(path).delete();
-      Bun.file(`${path}-wal`).delete();
-      Bun.file(`${path}-shm`).delete();
+      rmSync(`${path}-wal`, { force: true });
+      rmSync(`${path}-shm`, { force: true });
+      rmSync(path, { force: true });
     }
   });
 });
