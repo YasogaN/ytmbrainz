@@ -95,6 +95,32 @@ describe('translateRecording', () => {
     expect(translated.filter(recording)).toBe(true);
   });
 
+  it('matches either side of an OR filter query', () => {
+    const translated = translateRecording(parseQuery('arid:artist-1 OR arid:artist-2'));
+
+    expect(translated.filter(recording)).toBe(true);
+    expect(
+      translated.filter({
+        ...recording,
+        artistCredits: [
+          { name: 'Autechre', sortName: 'Autechre', artistId: 'artist-2', joinPhrase: '' },
+        ],
+      }),
+    ).toBe(true);
+    expect(translated.filter({ ...recording, artistCredits: [] })).toBe(false);
+  });
+
+  it('matches either side of an OR text query', () => {
+    const translated = translateRecording(
+      parseQuery('recording:"Roygbiv" OR recording:"Autechre"'),
+    );
+
+    expect(translated.searchText).toBe('Roygbiv Autechre');
+    expect(translated.filter(recording)).toBe(true);
+    expect(translated.filter({ ...recording, title: 'Autechre' })).toBe(true);
+    expect(translated.filter({ ...recording, title: 'Neither' })).toBe(false);
+  });
+
   it('excludes negated filter terms', () => {
     const translated = translateRecording(parseQuery('-arid:artist-2'));
 

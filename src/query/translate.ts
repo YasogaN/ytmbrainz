@@ -48,52 +48,51 @@ function durationFilter(value: string): ((length: number | null) => boolean) | n
   };
 }
 
-function applyFilters(
-  includes: Array<(entity: Entity) => boolean>,
-  excludes: Array<(entity: Entity) => boolean>,
+function clausePredicate(
+  clause: QueryClause,
+  config: EntitySearchConfig,
+): ((entity: Entity) => boolean) | null {
+  if (config.textFields.includes(clause.field)) {
+    const value = clause.value.toLowerCase();
+    return entity => config.textOf(entity).toLowerCase().includes(value);
+  }
+  return clause.field === null ? null : config.filterFor(clause.field, clause);
+}
+
+function combineOperands(
+  operands: Array<(entity: Entity) => boolean>,
+  joins: Array<'and' | 'or'>,
 ): (entity: Entity) => boolean {
-  return entity => {
-    for (const predicate of includes) {
-      if (!predicate(entity)) {
-        return false;
-      }
-    }
-    for (const predicate of excludes) {
-      if (!predicate(entity)) {
-        return false;
-      }
-    }
-    return true;
-  };
+  let filter: (entity: Entity) => boolean = () => true;
+  for (let i = 0; i < operands.length; i += 1) {
+    const operand = operands[i];
+    const previous = filter;
+    filter =
+      i === 0 || joins[i] === 'and'
+        ? entity => previous(entity) && operand(entity)
+        : entity => previous(entity) || operand(entity);
+  }
+  return filter;
 }
 
 function buildSearch(clauses: QueryClause[], config: EntitySearchConfig): TranslatedSearch {
   const terms: string[] = [];
-  const includes: Array<(entity: Entity) => boolean> = [];
-  const excludes: Array<(entity: Entity) => boolean> = [];
+  const operands: Array<(entity: Entity) => boolean> = [];
+  const joins: Array<'and' | 'or'> = [];
   for (const clause of clauses) {
-    if (config.textFields.includes(clause.field)) {
-      if (clause.negated) {
-        const matcher = (text: string) => text.toLowerCase().includes(clause.value.toLowerCase());
-        excludes.push(entity => !matcher(config.textOf(entity)));
-      } else {
-        terms.push(clause.value);
-      }
-      continue;
-    }
-    const predicate = clause.field === null ? null : config.filterFor(clause.field, clause);
+    const predicate = clausePredicate(clause, config);
     if (predicate === null) {
       continue;
     }
-    if (clause.negated) {
-      excludes.push(entity => !predicate(entity));
-    } else {
-      includes.push(predicate);
+    operands.push(clause.negated ? entity => !predicate(entity) : predicate);
+    joins.push(clause.operator);
+    if (config.textFields.includes(clause.field) && !clause.negated) {
+      terms.push(clause.value);
     }
   }
   return {
     searchText: terms.join(' '),
-    filter: applyFilters(includes, excludes),
+    filter: combineOperands(operands, joins),
   };
 }
 
