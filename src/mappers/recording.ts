@@ -1,18 +1,9 @@
-import type { YtArtist, YtTrack } from '@/adapters/types';
-import type { ArtistCredit, Recording } from '@/core/entities';
+import type { YtTrack } from '@/adapters/types';
+import type { Recording } from '@/core/entities';
 import { type MbidStore, toMbid } from '@/core/mbid';
+import { toArtistCredits } from '@/mappers/credit';
 
-export function toArtistCredits(artists: YtArtist[]): ArtistCredit[] {
-  const withIds = artists.filter(
-    (artist): artist is YtArtist & { id: string } => artist.id !== null,
-  );
-  return withIds.map((artist, index, list) => ({
-    name: artist.name,
-    sortName: artist.name,
-    artistId: toMbid('artist', artist.id),
-    joinPhrase: index === list.length - 1 ? '' : index === list.length - 2 ? ' & ' : ', ',
-  }));
-}
+export { toArtistCredits };
 
 export function mapRecording(track: YtTrack, score: number | null = null): Recording {
   return {

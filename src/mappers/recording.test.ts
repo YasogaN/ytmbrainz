@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'bun:test';
 import type { YtTrack } from '@/adapters/types';
 import { MbidStore, toMbid } from '@/core/mbid';
-import { mapRecording, registerRecording, toArtistCredits } from '@/mappers/recording';
+import { toArtistCredits } from '@/mappers/credit';
+import { mapRecording, registerRecording } from '@/mappers/recording';
 
 const track: YtTrack = {
   id: 'video-1',
