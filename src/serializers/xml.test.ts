@@ -98,6 +98,7 @@ const url: Url = {
   entity: 'url',
   id: 'url-mbid',
   resource: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+  relations: [],
   score: null,
 };
 
@@ -209,6 +210,33 @@ describe('lookupToXml', () => {
     expect(lookupToXml(created, url)).toBe(
       metadata(
         '<url id="url-mbid"><resource>https://www.youtube.com/watch?v=dQw4w9WgXcQ</resource></url>',
+      ),
+    );
+  });
+
+  it('serializes a url with relations', () => {
+    const related: Url = {
+      ...url,
+      relations: [
+        {
+          type: 'recording',
+          target: recording.id,
+          direction: 'backward',
+          entity: recording,
+        },
+      ],
+    };
+
+    expect(lookupToXml(created, related)).toBe(
+      metadata(
+        '<url id="url-mbid"><resource>https://www.youtube.com/watch?v=dQw4w9WgXcQ</resource>' +
+          '<relation-list target-type="recording"><relation type="recording" target="rec-mbid" direction="backward">' +
+          '<recording id="rec-mbid" ns2:score="100"><title>Roygbiv</title><length>148000</length>' +
+          '<artist-credit><name-credit joinphrase=" &amp; "><name>Boards of Canada</name>' +
+          '<artist id="artist-mbid"><name>Boards of Canada</name><sort-name>Boards of Canada</sort-name></artist>' +
+          '</name-credit></artist-credit><first-release-date>1998</first-release-date>' +
+          '<release-list count="1"><release id="rel-mbid"><title>Music Has the Right to Children</title>' +
+          '<date>1998</date></release></release-list></recording></relation></relation-list></url>',
       ),
     );
   });

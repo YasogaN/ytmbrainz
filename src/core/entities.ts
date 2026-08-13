@@ -94,10 +94,18 @@ export interface ReleaseGroup {
   score: number | null;
 }
 
+export interface UrlRelation {
+  type: string;
+  target: string;
+  direction: 'forward' | 'backward';
+  entity: Entity;
+}
+
 export interface Url {
   entity: 'url';
   id: string;
   resource: string;
+  relations: UrlRelation[];
   score: number | null;
 }
 

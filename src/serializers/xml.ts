@@ -178,7 +178,31 @@ function releaseGroupXml(group: ReleaseGroup): string {
 }
 
 function urlXml(url: Url): string {
-  return el('url', { id: url.id, 'ns2:score': url.score }, textEl('resource', url.resource));
+  const relations =
+    url.relations.length === 0
+      ? ''
+      : el(
+          'relation-list',
+          { 'target-type': url.relations[0]?.entity.entity ?? '' },
+          url.relations
+            .map(relation =>
+              el(
+                'relation',
+                {
+                  type: relation.type,
+                  target: relation.target,
+                  direction: relation.direction,
+                },
+                entityToXml(relation.entity),
+              ),
+            )
+            .join(''),
+        );
+  return el(
+    'url',
+    { id: url.id, 'ns2:score': url.score },
+    textEl('resource', url.resource) + relations,
+  );
 }
 
 function entityToXml(entity: Entity): string {

@@ -116,6 +116,14 @@ async function handle(request: Request, url: URL, context: RequestContext): Prom
     }
     return respondEntity(context, entity);
   }
+  if (route.entity === 'url' && searchParams.get('resource') !== null) {
+    const resource = searchParams.get('resource') ?? '';
+    const entity = await service.lookup(context, resource, searchParams);
+    if (entity === null) {
+      return errorToResponse(notFound('Could not find the url.'), context.format);
+    }
+    return respondEntity(context, entity);
+  }
   const page = {
     limit: parseLimit(searchParams.get('limit')),
     offset: parseOffset(searchParams.get('offset')),

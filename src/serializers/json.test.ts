@@ -96,6 +96,7 @@ const url: Url = {
   entity: 'url',
   id: 'url-mbid',
   resource: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+  relations: [],
   score: null,
 };
 
@@ -208,6 +209,33 @@ describe('entityToJson', () => {
     expect(entityToJson(url)).toEqual({
       id: 'url-mbid',
       resource: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+    });
+  });
+
+  it('serializes a url with relations', () => {
+    const related: Url = {
+      ...url,
+      relations: [
+        {
+          type: 'recording',
+          target: recording.id,
+          direction: 'backward',
+          entity: recording,
+        },
+      ],
+    };
+
+    expect(entityToJson(related)).toEqual({
+      id: 'url-mbid',
+      resource: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+      relations: [
+        {
+          type: 'recording',
+          target: recording.id,
+          direction: 'backward',
+          recording: entityToJson(recording),
+        },
+      ],
     });
   });
 });

@@ -132,6 +132,14 @@ function urlJson(url: Url): JsonObject {
     id: url.id,
     ...(url.score !== null && { score: url.score }),
     resource: url.resource,
+    ...(url.relations.length > 0 && {
+      relations: url.relations.map(relation => ({
+        type: relation.type,
+        target: relation.target,
+        direction: relation.direction,
+        [relation.entity.entity]: entityToJson(relation.entity),
+      })),
+    }),
   };
 }
 
