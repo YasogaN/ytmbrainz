@@ -7,23 +7,32 @@ function sleep(ms: number): Promise<void> {
 
 /**
  * Serializes calls to the underlying source so no two requests hit YouTube
- * closer than `minIntervalMs` apart.
+ * closer than `minIntervalMs` apart. Calls are chained through a single queue,
+ * so concurrent bursts are spaced out instead of all firing at once.
  */
 export class RateLimitedSource implements YouTubeSource {
-  private nextAllowed = 0;
+  private lastStartedAt = 0;
+  private queue: Promise<unknown> = Promise.resolve();
 
   constructor(
     private readonly source: YouTubeSource,
     private readonly minIntervalMs: number,
   ) {}
 
-  private async call<T>(load: () => Promise<T>): Promise<T> {
-    const wait = Math.max(0, this.nextAllowed - Date.now());
-    if (wait > 0) {
-      await sleep(wait);
-    }
-    this.nextAllowed = Date.now() + this.minIntervalMs;
-    return load();
+  private call<T>(load: () => Promise<T>): Promise<T> {
+    const run = this.queue.then(async () => {
+      const wait = Math.max(0, this.lastStartedAt + this.minIntervalMs - Date.now());
+      if (wait > 0) {
+        await sleep(wait);
+      }
+      this.lastStartedAt = Date.now();
+      return load();
+    });
+    this.queue = run.then(
+      () => undefined,
+      () => undefined,
+    );
+    return run;
   }
 
   searchSongs(query: string, limit?: number): Promise<YtTrack[]> {

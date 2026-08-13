@@ -39,6 +39,38 @@ describe('RateLimitedSource', () => {
     expect((calls[1] ?? 0) - (calls[0] ?? 0)).toBeLessThan(50);
   });
 
+  it('spaces out concurrent calls within the interval', async () => {
+    const calls: number[] = [];
+    const wrapped = new RateLimitedSource(source(calls), 50);
+
+    await wrapped.searchSongs('a');
+    await Promise.all([
+      wrapped.searchSongs('b'),
+      wrapped.searchSongs('c'),
+      wrapped.searchSongs('d'),
+    ]);
+
+    const gaps = calls.slice(1).map((time, index) => time - (calls[index] ?? 0));
+    expect(calls).toHaveLength(4);
+    for (const gap of gaps) {
+      expect(gap).toBeGreaterThanOrEqual(50);
+    }
+  });
+
+  it('keeps the queue usable after an upstream failure', async () => {
+    const inner = source([]);
+    inner.searchSongs = mock(async () => {
+      throw new Error('boom');
+    });
+    const wrapped = new RateLimitedSource(inner, 0);
+
+    await expect(wrapped.searchSongs('a')).rejects.toThrow('boom');
+    inner.searchSongs = mock(async () => []);
+    await wrapped.searchSongs('b');
+
+    expect(inner.searchSongs).toHaveBeenCalledWith('b', undefined);
+  });
+
   it('limits every source method', async () => {
     const calls: number[] = [];
     const inner = source(calls);
