@@ -1,17 +1,7 @@
 import { describe, expect, it } from 'bun:test';
-import { InnerTubeSource } from '@/adapters/innertube';
-import { MbidStore } from '@/core/mbid';
-import { createApp } from '@/ws/app';
-import { artistService } from '@/ws/services/artist';
+import { firstId, makeApp } from './helpers';
 
 const runLive = Boolean(process.env.RUN_LIVE);
-
-const makeApp = () => {
-  const source = new InnerTubeSource();
-  const store = new MbidStore(':memory:');
-  const app = createApp({ source, store, services: { artist: artistService } });
-  return { app, store };
-};
 
 describe.skipIf(!runLive)('artist route (live)', () => {
   it('searches for an artist', async () => {
@@ -32,15 +22,24 @@ describe.skipIf(!runLive)('artist route (live)', () => {
 
   it('resolves an artist by the MBID it served', async () => {
     const { app, store } = makeApp();
-    const search = await app(new Request('http://localhost/ws/2/artist?query=boards&fmt=json'));
-    const body = (await search.json()) as { artists: Array<{ id: string }> };
-    const mbid = body.artists[0]?.id;
-    expect(mbid).toBeTruthy();
+    const mbid = await firstId(app, 'http://localhost/ws/2/artist?query=boards&fmt=json');
 
     const lookup = await app(new Request(`http://localhost/ws/2/artist/${mbid}?fmt=json`));
     expect(lookup.status).toBe(200);
-    const lookupBody = (await lookup.json()) as { name: string };
-    expect(lookupBody.name).toBe('Boards of Canada');
+    const body = (await lookup.json()) as { name: string };
+    expect(body.name).toBe('Boards of Canada');
+    store.close();
+  }, 60_000);
+
+  it('returns XML by default with a sort-name', async () => {
+    const { app, store } = makeApp();
+    const response = await app(new Request('http://localhost/ws/2/artist?query=boards'));
+
+    expect(response.status).toBe(200);
+    const text = await response.text();
+    expect(text).toContain('<artist-list count="');
+    expect(text).toContain('<sort-name>Boards of Canada</sort-name>');
+    expect(text).toContain('<life-span><ended>false</ended></life-span>');
     store.close();
   }, 60_000);
 });
