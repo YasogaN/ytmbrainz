@@ -2,6 +2,11 @@ import { WsError } from '@/ws/errors';
 
 export const DEFAULT_LIMIT = 25;
 export const MAX_LIMIT = 100;
+export const MAX_FETCH = 200;
+
+export function fetchLimit(limit: number, offset: number): number {
+  return Math.min(offset + limit, MAX_FETCH);
+}
 
 export interface PageParams {
   limit: number;

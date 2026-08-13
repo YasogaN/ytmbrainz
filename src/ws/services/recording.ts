@@ -5,7 +5,7 @@ import { translateRecording } from '@/query/translate';
 import type { EntityService, HandlerContext } from '@/ws/app';
 import { badRequest } from '@/ws/errors';
 import { RECORDING_INC, validateInc } from '@/ws/inc';
-import { parseInc } from '@/ws/params';
+import { fetchLimit, parseInc, parseLimit, parseOffset } from '@/ws/params';
 import { resolveLinked } from '@/ws/services/linked';
 
 export const recordingService: EntityService = {
@@ -18,7 +18,10 @@ export const recordingService: EntityService = {
     if (translated.searchText === '') {
       return [];
     }
-    const tracks = await context.source.searchSongs(translated.searchText);
+    const tracks = await context.source.searchSongs(
+      translated.searchText,
+      fetchLimit(parseLimit(searchParams.get('limit')), parseOffset(searchParams.get('offset'))),
+    );
     const recordings: Entity[] = [];
     for (const [index, track] of tracks.entries()) {
       registerRecording(context.store, track);

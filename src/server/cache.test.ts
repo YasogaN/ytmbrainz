@@ -96,8 +96,8 @@ describe('TtlCache', () => {
     await wrapped.getArtist('x');
     await wrapped.getSong('x');
 
-    expect(inner.searchAlbums).toHaveBeenCalledWith('x');
-    expect(inner.searchArtists).toHaveBeenCalledWith('x');
+    expect(inner.searchAlbums).toHaveBeenCalledWith('x', undefined);
+    expect(inner.searchArtists).toHaveBeenCalledWith('x', undefined);
     expect(inner.getAlbum).toHaveBeenCalledWith('x');
     expect(inner.getArtist).toHaveBeenCalledWith('x');
     expect(inner.getSong).toHaveBeenCalledWith('x');

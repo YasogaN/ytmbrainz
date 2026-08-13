@@ -73,7 +73,7 @@ export class FakeSource implements YouTubeSource {
     return this;
   }
 
-  async searchSongs(query: string): Promise<YtTrack[]> {
+  async searchSongs(query: string, limit?: number): Promise<YtTrack[]> {
     const results: YtTrack[] = [];
     for (const track of this.tracks.values()) {
       const parts = [track.title, ...track.artists.map(artist => artist.name)];
@@ -81,10 +81,10 @@ export class FakeSource implements YouTubeSource {
         results.push(track);
       }
     }
-    return results;
+    return limit === undefined ? results : results.slice(0, limit);
   }
 
-  async searchAlbums(query: string): Promise<YtAlbumRef[]> {
+  async searchAlbums(query: string, limit?: number): Promise<YtAlbumRef[]> {
     const results: YtAlbumRef[] = [];
     for (const album of this.albumRefs.values()) {
       const parts = [album.name, ...album.artists.map(artist => artist.name)];
@@ -92,17 +92,17 @@ export class FakeSource implements YouTubeSource {
         results.push(album);
       }
     }
-    return results;
+    return limit === undefined ? results : results.slice(0, limit);
   }
 
-  async searchArtists(query: string): Promise<YtArtist[]> {
+  async searchArtists(query: string, limit?: number): Promise<YtArtist[]> {
     const results: YtArtist[] = [];
     for (const artist of this.artists.values()) {
       if (matches(query, artist.name)) {
         results.push({ id: artist.id, name: artist.name });
       }
     }
-    return results;
+    return limit === undefined ? results : results.slice(0, limit);
   }
 
   async getAlbum(id: string): Promise<YtAlbum | null> {

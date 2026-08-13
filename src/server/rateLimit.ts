@@ -26,16 +26,16 @@ export class RateLimitedSource implements YouTubeSource {
     return load();
   }
 
-  searchSongs(query: string): Promise<YtTrack[]> {
-    return this.call(() => this.source.searchSongs(query));
+  searchSongs(query: string, limit?: number): Promise<YtTrack[]> {
+    return this.call(() => this.source.searchSongs(query, limit));
   }
 
-  searchAlbums(query: string): Promise<YtAlbumRef[]> {
-    return this.call(() => this.source.searchAlbums(query));
+  searchAlbums(query: string, limit?: number): Promise<YtAlbumRef[]> {
+    return this.call(() => this.source.searchAlbums(query, limit));
   }
 
-  searchArtists(query: string): Promise<YtArtist[]> {
-    return this.call(() => this.source.searchArtists(query));
+  searchArtists(query: string, limit?: number): Promise<YtArtist[]> {
+    return this.call(() => this.source.searchArtists(query, limit));
   }
 
   getAlbum(id: string): Promise<YtAlbum | null> {

@@ -5,7 +5,7 @@ import { translateArtist } from '@/query/translate';
 import type { EntityService, HandlerContext } from '@/ws/app';
 import { badRequest } from '@/ws/errors';
 import { ARTIST_INC, validateInc } from '@/ws/inc';
-import { parseInc } from '@/ws/params';
+import { fetchLimit, parseInc, parseLimit, parseOffset } from '@/ws/params';
 
 export const artistService: EntityService = {
   async search(context: HandlerContext, searchParams: URLSearchParams): Promise<Entity[]> {
@@ -17,7 +17,10 @@ export const artistService: EntityService = {
     if (translated.searchText === '') {
       return [];
     }
-    const artists = await context.source.searchArtists(translated.searchText);
+    const artists = await context.source.searchArtists(
+      translated.searchText,
+      fetchLimit(parseLimit(searchParams.get('limit')), parseOffset(searchParams.get('offset'))),
+    );
     const entities: Entity[] = [];
     for (const [index, artist] of artists.entries()) {
       registerArtist(context.store, artist);

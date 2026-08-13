@@ -49,16 +49,16 @@ export class RetryingSource implements YouTubeSource {
     }
   }
 
-  searchSongs(query: string): Promise<YtTrack[]> {
-    return this.withRetry(() => this.source.searchSongs(query));
+  searchSongs(query: string, limit?: number): Promise<YtTrack[]> {
+    return this.withRetry(() => this.source.searchSongs(query, limit));
   }
 
-  searchAlbums(query: string): Promise<YtAlbumRef[]> {
-    return this.withRetry(() => this.source.searchAlbums(query));
+  searchAlbums(query: string, limit?: number): Promise<YtAlbumRef[]> {
+    return this.withRetry(() => this.source.searchAlbums(query, limit));
   }
 
-  searchArtists(query: string): Promise<YtArtist[]> {
-    return this.withRetry(() => this.source.searchArtists(query));
+  searchArtists(query: string, limit?: number): Promise<YtArtist[]> {
+    return this.withRetry(() => this.source.searchArtists(query, limit));
   }
 
   getAlbum(id: string): Promise<YtAlbum | null> {

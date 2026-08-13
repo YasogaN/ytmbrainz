@@ -5,7 +5,7 @@ import { translateRelease } from '@/query/translate';
 import type { EntityService, HandlerContext } from '@/ws/app';
 import { badRequest } from '@/ws/errors';
 import { RELEASE_INC, validateInc } from '@/ws/inc';
-import { parseInc } from '@/ws/params';
+import { fetchLimit, parseInc, parseLimit, parseOffset } from '@/ws/params';
 import { resolveLinked } from '@/ws/services/linked';
 
 export const releaseService: EntityService = {
@@ -18,7 +18,10 @@ export const releaseService: EntityService = {
     if (translated.searchText === '') {
       return [];
     }
-    const albums = await context.source.searchAlbums(translated.searchText);
+    const albums = await context.source.searchAlbums(
+      translated.searchText,
+      fetchLimit(parseLimit(searchParams.get('limit')), parseOffset(searchParams.get('offset'))),
+    );
     const releases: Entity[] = [];
     for (const [index, album] of albums.entries()) {
       registerRelease(context.store, album);

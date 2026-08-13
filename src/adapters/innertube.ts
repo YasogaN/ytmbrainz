@@ -18,6 +18,16 @@ interface ArtistLike {
   channel_id?: string;
 }
 
+interface TrackItemLike {
+  id?: string;
+  title?: string;
+  item_type?: string;
+  duration?: { seconds?: number };
+  artists?: ArtistLike[];
+  album?: { id?: string; name: string };
+  year?: string;
+}
+
 interface AlbumRefItemLike {
   id?: string;
   title?: string;
@@ -45,7 +55,7 @@ function toYtArtists(artists: ArtistLike[] | undefined): YtArtist[] {
   }));
 }
 
-function trackFromItem(item: YTNodes.MusicResponsiveListItem): YtTrack | null {
+function trackFromItem(item: TrackItemLike): YtTrack | null {
   if (item.id === undefined || item.title === undefined) {
     return null;
   }
@@ -128,13 +138,63 @@ function topTracksFromShelf(shelf: YTNodes.MusicShelf): YtTrack[] {
   if (shelf.title.toString().toLowerCase() !== 'top songs') {
     return [];
   }
-  return shelf.contents.map(trackFromItem).filter((track): track is YtTrack => track !== null);
+  return shelf.contents
+    .map(item => trackFromItem(item as unknown as TrackItemLike))
+    .filter((track): track is YtTrack => track !== null);
 }
 
 function albumRefsFromCarousel(carousel: YTNodes.MusicCarouselShelf): YtAlbumRef[] {
   return carousel.contents
     .map(item => albumRefFromItem(item as unknown as AlbumRefItemLike))
     .filter((ref): ref is YtAlbumRef => ref !== null);
+}
+
+type SearchPage = YTMusic.Search | Awaited<ReturnType<YTMusic.Search['getContinuation']>>;
+
+const MAX_PAGES = 10;
+
+/**
+ * Fetches search results across continuation pages until `limit` items are
+ * collected (or the results are exhausted). The first page is the initial
+ * search response; subsequent pages come from its continuation token.
+ */
+async function collectPages(
+  search: YTMusic.Search,
+  itemsOf: (page: SearchPage) => readonly unknown[] | undefined,
+  limit: number,
+): Promise<unknown[]> {
+  const items: unknown[] = [];
+  let page: SearchPage = search;
+  for (let guard = 0; guard < MAX_PAGES; guard += 1) {
+    const chunk = itemsOf(page);
+    if (chunk !== undefined) {
+      for (const item of chunk) {
+        items.push(item);
+        if (items.length >= limit) {
+          return items;
+        }
+      }
+    }
+    if (!page.has_continuation) {
+      return items;
+    }
+    page = await page.getContinuation();
+  }
+  return items;
+}
+
+function shelfItemsOf(page: SearchPage, kind: 'song' | 'album' | 'artist') {
+  if (kind === 'song' && 'songs' in page) {
+    return page.songs?.contents;
+  }
+  if (kind === 'album' && 'albums' in page) {
+    return page.albums?.contents;
+  }
+  if (kind === 'artist' && 'artists' in page) {
+    return page.artists?.contents;
+  }
+  const continuation = page as Awaited<ReturnType<YTMusic.Search['getContinuation']>>;
+  return continuation.contents?.contents;
 }
 
 /**
@@ -158,37 +218,42 @@ export class InnerTubeSource implements YouTubeSource {
     return yt.music;
   }
 
-  async searchSongs(query: string): Promise<YtTrack[]> {
+  async searchSongs(query: string, limit?: number): Promise<YtTrack[]> {
     const music = await this.musicClient();
     const search = await music.search(query, { type: 'song' });
-    const shelf = search.songs;
-    if (shelf === undefined) {
-      return [];
-    }
-    return shelf.contents.map(trackFromItem).filter((track): track is YtTrack => track !== null);
+    const pages = await collectPages(
+      search,
+      page => shelfItemsOf(page, 'song'),
+      limit ?? Number.POSITIVE_INFINITY,
+    );
+    return pages
+      .map(item => trackFromItem(item as TrackItemLike))
+      .filter((track): track is YtTrack => track !== null);
   }
 
-  async searchAlbums(query: string): Promise<YtAlbumRef[]> {
+  async searchAlbums(query: string, limit?: number): Promise<YtAlbumRef[]> {
     const music = await this.musicClient();
     const search = await music.search(query, { type: 'album' });
-    const shelf = search.albums;
-    if (shelf === undefined) {
-      return [];
-    }
-    return shelf.contents
-      .map(item => albumRefFromItem(item))
+    const pages = await collectPages(
+      search,
+      page => shelfItemsOf(page, 'album'),
+      limit ?? Number.POSITIVE_INFINITY,
+    );
+    return pages
+      .map(item => albumRefFromItem(item as AlbumRefItemLike))
       .filter((album): album is YtAlbumRef => album !== null);
   }
 
-  async searchArtists(query: string): Promise<YtArtist[]> {
+  async searchArtists(query: string, limit?: number): Promise<YtArtist[]> {
     const music = await this.musicClient();
     const search = await music.search(query, { type: 'artist' });
-    const shelf = search.artists;
-    if (shelf === undefined) {
-      return [];
-    }
-    return shelf.contents
-      .map(artistFromItem)
+    const pages = await collectPages(
+      search,
+      page => shelfItemsOf(page, 'artist'),
+      limit ?? Number.POSITIVE_INFINITY,
+    );
+    return pages
+      .map(item => artistFromItem(item as { id?: string; name?: string }))
       .filter((artist): artist is YtArtist => artist !== null);
   }
 
@@ -202,7 +267,7 @@ export class InnerTubeSource implements YouTubeSource {
     }
     const info = albumHeaderInfo(album.header);
     const tracks = album.contents
-      .map(trackFromItem)
+      .map(item => trackFromItem(item as unknown as TrackItemLike))
       .filter((track): track is YtTrack => track !== null);
     return {
       id,

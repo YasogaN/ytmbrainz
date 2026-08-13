@@ -5,9 +5,9 @@ import type { YtAlbum, YtAlbumRef, YtArtist, YtArtistPage, YtTrack } from '@/ada
  * youtube.js directly, so they can be tested against a fake.
  */
 export interface YouTubeSource {
-  searchSongs(query: string): Promise<YtTrack[]>;
-  searchAlbums(query: string): Promise<YtAlbumRef[]>;
-  searchArtists(query: string): Promise<YtArtist[]>;
+  searchSongs(query: string, limit?: number): Promise<YtTrack[]>;
+  searchAlbums(query: string, limit?: number): Promise<YtAlbumRef[]>;
+  searchArtists(query: string, limit?: number): Promise<YtArtist[]>;
   getAlbum(id: string): Promise<YtAlbum | null>;
   getArtist(id: string): Promise<YtArtistPage | null>;
   getSong(id: string): Promise<YtTrack | null>;
