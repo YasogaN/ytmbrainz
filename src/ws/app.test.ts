@@ -37,6 +37,15 @@ const makeApp = (service: EntityService | undefined, source = new FakeSource()) 
 };
 
 describe('createApp', () => {
+  it('serves a health endpoint', async () => {
+    const { app, store } = makeApp(undefined);
+    const response = await app(new Request('http://localhost/health'));
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({ status: 'ok' });
+    store.close();
+  });
+
   it('returns the search results as JSON', async () => {
     const { app, store } = makeApp({
       search: async () => [recording],

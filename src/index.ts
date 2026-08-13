@@ -2,9 +2,11 @@ import { InnerTubeSource } from '@/adapters/innertube';
 import { loadConfig } from '@/core/config';
 import { MbidStore } from '@/core/mbid';
 import { CachingSource, TtlCache } from '@/server/cache';
+import { HttpRateLimiter } from '@/server/httpRateLimit';
 import { RateLimitedSource } from '@/server/rateLimit';
 import { RetryingSource } from '@/server/retry';
 import { createApp } from '@/ws/app';
+import { errorToResponse, serviceUnavailable } from '@/ws/errors';
 import { artistService } from '@/ws/services/artist';
 import { recordingService } from '@/ws/services/recording';
 import { releaseService } from '@/ws/services/release';
@@ -34,10 +36,21 @@ const app = createApp({
   },
 });
 
+const limiter = new HttpRateLimiter(config.httpRateLimit, 1000);
+
 const server = Bun.serve({
   hostname: config.host,
   port: config.port,
-  fetch: app,
+  fetch: (request, server) => {
+    const url = new URL(request.url);
+    if (
+      url.pathname !== '/health' &&
+      !limiter.allow(server.requestIP(request)?.address ?? 'unknown')
+    ) {
+      return errorToResponse(serviceUnavailable('Rate limit exceeded.'), 'json');
+    }
+    return app(request);
+  },
 });
 
 console.log(`ytmbrainz listening on http://${config.host}:${server.port}`);

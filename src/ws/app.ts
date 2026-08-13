@@ -85,6 +85,10 @@ export function createApp(options: AppOptions): (request: Request) => Promise<Re
   const { source, store, services = {} } = options;
   return async (request: Request): Promise<Response> => {
     const url = new URL(request.url);
+    const health = healthResponse(url);
+    if (health !== null) {
+      return health;
+    }
     const format = resolveFormat(url.searchParams.get('fmt'), request.headers.get('accept'));
     const context: RequestContext = { source, store, format, services };
     try {
@@ -103,6 +107,15 @@ function findBrowseParam(entity: WsEntityType, searchParams: URLSearchParams): s
   return searchParams.get('query') === null
     ? BROWSE_PARAMS[entity].find(param => searchParams.get(param) !== null)
     : undefined;
+}
+
+function healthResponse(url: URL): Response | null {
+  if (url.pathname !== '/health') {
+    return null;
+  }
+  return new Response(JSON.stringify({ status: 'ok' }), {
+    headers: { 'content-type': 'application/json' },
+  });
 }
 
 async function handle(request: Request, url: URL, context: RequestContext): Promise<Response> {

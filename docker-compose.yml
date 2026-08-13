@@ -1,7 +1,7 @@
 services:
   ytmbrainz:
     build: .
-    image: ghcr.io/${GITHUB_REPOSITORY:-ytmbrainz/ytmbrainz}:latest
+    image: ghcr.io/YasogaN/ytmbrainz:latest
     ports:
       - '3000:3000'
     environment:
