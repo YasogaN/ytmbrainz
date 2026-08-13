@@ -4,17 +4,8 @@ import { parseQuery } from '@/query/parser';
 import { translateRecording } from '@/query/translate';
 import type { EntityService, HandlerContext } from '@/ws/app';
 import { badRequest } from '@/ws/errors';
+import { RECORDING_INC, validateInc } from '@/ws/inc';
 import { parseInc } from '@/ws/params';
-
-const RECORDING_INC = new Set(['artist-credits', 'releases', 'release-groups', 'isrcs']);
-
-function validateInc(searchParams: URLSearchParams): void {
-  for (const inc of parseInc(searchParams)) {
-    if (!RECORDING_INC.has(inc)) {
-      throw badRequest(`Invalid inc parameter: ${inc}.`);
-    }
-  }
-}
 
 export const recordingService: EntityService = {
   async search(context: HandlerContext, searchParams: URLSearchParams): Promise<Entity[]> {
@@ -40,7 +31,7 @@ export const recordingService: EntityService = {
     mbid: string,
     searchParams: URLSearchParams,
   ): Promise<Entity | null> {
-    validateInc(searchParams);
+    validateInc(parseInc(searchParams), RECORDING_INC);
     const key = context.store.lookup(mbid);
     if (key === null || key.entity !== 'recording') {
       return null;
