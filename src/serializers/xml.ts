@@ -205,9 +205,10 @@ export function listToXml(
   listName: string,
   items: Entity[],
   offset: number,
+  count = items.length,
 ): string {
   const inner = items.map(entityToXml).join('');
-  return metadataXml(created, el(listName, { count: items.length, offset }, inner));
+  return metadataXml(created, el(listName, { count, offset }, inner));
 }
 
 export function lookupToXml(created: string, entity: Entity): string {

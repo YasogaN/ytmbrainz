@@ -228,4 +228,10 @@ describe('listToXml', () => {
       ),
     );
   });
+
+  it('accepts a total count distinct from the returned items', () => {
+    expect(listToXml(created, 'recording-list', [recording], 10, 120)).toContain(
+      '<recording-list count="120" offset="10">',
+    );
+  });
 });

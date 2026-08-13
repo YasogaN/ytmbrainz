@@ -222,6 +222,12 @@ describe('searchToJson and lookupToJson', () => {
     });
   });
 
+  it('accepts a total count distinct from the returned items', () => {
+    expect(
+      searchToJson('2026-08-13T20:00:00.000Z', 'recordings', [recording], 10, 120),
+    ).toMatchObject({ count: 120, offset: 10 });
+  });
+
   it('wraps a lookup without a list key', () => {
     expect(lookupToJson('2026-08-13T20:00:00.000Z', artist)).toEqual({
       created: '2026-08-13T20:00:00.000Z',

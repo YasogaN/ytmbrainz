@@ -2,22 +2,44 @@ import type { YouTubeSource } from '@/adapters/source';
 import type { YtAlbum, YtAlbumRef, YtArtist, YtArtistPage, YtTrack } from '@/adapters/types';
 
 function tokens(...parts: Array<string | null | undefined>): string[] {
-  return parts
-    .filter((part): part is string => part !== null && part !== undefined)
-    .join(' ')
-    .toLowerCase()
-    .split(/\s+/)
-    .filter(token => token.length > 0);
+  const words: string[] = [];
+  for (const part of parts) {
+    if (part === null || part === undefined) {
+      continue;
+    }
+    for (const word of part.toLowerCase().split(/\s+/)) {
+      if (word.length > 0) {
+        words.push(word);
+      }
+    }
+  }
+  return words;
 }
 
 function matches(query: string, ...parts: Array<string | null | undefined>): boolean {
   const needle = tokens(query);
   const haystack = tokens(...parts);
-  return needle.every(term => haystack.some(part => part.includes(term)));
+  for (const term of needle) {
+    let found = false;
+    for (const part of haystack) {
+      if (part.includes(term)) {
+        found = true;
+        break;
+      }
+    }
+    if (!found) {
+      return false;
+    }
+  }
+  return true;
 }
 
 function artistsMatch(query: string, artists: YtArtist[]): boolean {
-  return matches(query, ...artists.map(artist => artist.name));
+  const names: string[] = [];
+  for (const artist of artists) {
+    names.push(artist.name);
+  }
+  return matches(query, ...names);
 }
 
 /**
@@ -25,10 +47,17 @@ function artistsMatch(query: string, artists: YtArtist[]): boolean {
  * can be exercised without any network access.
  */
 export class FakeSource implements YouTubeSource {
-  private readonly tracks = new Map<string, YtTrack>();
-  private readonly albums = new Map<string, YtAlbum>();
-  private readonly albumRefs = new Map<string, YtAlbumRef>();
-  private readonly artists = new Map<string, YtArtistPage>();
+  private readonly tracks: Map<string, YtTrack>;
+  private readonly albums: Map<string, YtAlbum>;
+  private readonly albumRefs: Map<string, YtAlbumRef>;
+  private readonly artists: Map<string, YtArtistPage>;
+
+  constructor() {
+    this.tracks = new Map();
+    this.albums = new Map();
+    this.albumRefs = new Map();
+    this.artists = new Map();
+  }
 
   seedTrack(track: YtTrack): this {
     this.tracks.set(track.id ?? crypto.randomUUID(), track);
@@ -37,7 +66,13 @@ export class FakeSource implements YouTubeSource {
 
   seedAlbum(album: YtAlbum): this {
     this.albums.set(album.id ?? crypto.randomUUID(), album);
-    this.albumRefs.set(album.id ?? '', album);
+    const ref: YtAlbumRef = {
+      id: album.id,
+      name: album.name,
+      artists: album.artists,
+      year: album.year,
+    };
+    this.albumRefs.set(album.id ?? '', ref);
     return this;
   }
 
@@ -47,21 +82,33 @@ export class FakeSource implements YouTubeSource {
   }
 
   async searchSongs(query: string): Promise<YtTrack[]> {
-    return [...this.tracks.values()].filter(
-      track => matches(query, track.title) || artistsMatch(query, track.artists),
-    );
+    const results: YtTrack[] = [];
+    for (const track of this.tracks.values()) {
+      if (matches(query, track.title) || artistsMatch(query, track.artists)) {
+        results.push(track);
+      }
+    }
+    return results;
   }
 
   async searchAlbums(query: string): Promise<YtAlbumRef[]> {
-    return [...this.albumRefs.values()].filter(
-      album => matches(query, album.name) || artistsMatch(query, album.artists),
-    );
+    const results: YtAlbumRef[] = [];
+    for (const album of this.albumRefs.values()) {
+      if (matches(query, album.name) || artistsMatch(query, album.artists)) {
+        results.push(album);
+      }
+    }
+    return results;
   }
 
   async searchArtists(query: string): Promise<YtArtist[]> {
-    return [...this.artists.values()]
-      .filter(artist => matches(query, artist.name))
-      .map(artist => ({ id: artist.id, name: artist.name }));
+    const results: YtArtist[] = [];
+    for (const artist of this.artists.values()) {
+      if (matches(query, artist.name)) {
+        results.push({ id: artist.id, name: artist.name });
+      }
+    }
+    return results;
   }
 
   async getAlbum(id: string): Promise<YtAlbum | null> {

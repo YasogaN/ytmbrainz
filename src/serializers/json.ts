@@ -155,8 +155,9 @@ export function searchToJson(
   key: string,
   items: Entity[],
   offset: number,
+  count = items.length,
 ): JsonObject {
-  return { created, count: items.length, offset, [key]: items.map(entityToJson) };
+  return { created, count, offset, [key]: items.map(entityToJson) };
 }
 
 export function lookupToJson(created: string, entity: Entity): JsonObject {
