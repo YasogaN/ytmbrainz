@@ -145,6 +145,19 @@
           }
         }
       }
+    },
+    {
+      "includes": ["**/commitlint.config.*"],
+      "linter": {
+        "rules": {
+          "correctness": {
+            "noNodejsModules": "off"
+          },
+          "style": {
+            "noDefaultExport": "off"
+          }
+        }
+      }
     }
   ]
 }
