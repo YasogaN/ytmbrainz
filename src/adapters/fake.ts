@@ -34,14 +34,6 @@ function matches(query: string, ...parts: Array<string | null | undefined>): boo
   return true;
 }
 
-function artistsMatch(query: string, artists: YtArtist[]): boolean {
-  const names: string[] = [];
-  for (const artist of artists) {
-    names.push(artist.name);
-  }
-  return matches(query, ...names);
-}
-
 /**
  * In-memory source backed by seeded fixtures. Used by tests so route handlers
  * can be exercised without any network access.
@@ -84,7 +76,8 @@ export class FakeSource implements YouTubeSource {
   async searchSongs(query: string): Promise<YtTrack[]> {
     const results: YtTrack[] = [];
     for (const track of this.tracks.values()) {
-      if (matches(query, track.title) || artistsMatch(query, track.artists)) {
+      const parts = [track.title, ...track.artists.map(artist => artist.name)];
+      if (matches(query, ...parts)) {
         results.push(track);
       }
     }
@@ -94,7 +87,8 @@ export class FakeSource implements YouTubeSource {
   async searchAlbums(query: string): Promise<YtAlbumRef[]> {
     const results: YtAlbumRef[] = [];
     for (const album of this.albumRefs.values()) {
-      if (matches(query, album.name) || artistsMatch(query, album.artists)) {
+      const parts = [album.name, ...album.artists.map(artist => artist.name)];
+      if (matches(query, ...parts)) {
         results.push(album);
       }
     }
