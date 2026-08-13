@@ -3,6 +3,7 @@ import { loadConfig } from '@/core/config';
 import { MbidStore } from '@/core/mbid';
 import { CachingSource, TtlCache } from '@/server/cache';
 import { RateLimitedSource } from '@/server/rateLimit';
+import { RetryingSource } from '@/server/retry';
 import { createApp } from '@/ws/app';
 import { artistService } from '@/ws/services/artist';
 import { recordingService } from '@/ws/services/recording';
@@ -13,7 +14,11 @@ import { urlService } from '@/ws/services/url';
 const config = loadConfig();
 
 const source = new CachingSource(
-  new RateLimitedSource(new InnerTubeSource(), config.ytMinIntervalMs),
+  new RetryingSource(new RateLimitedSource(new InnerTubeSource(), config.ytMinIntervalMs), {
+    maxRetries: config.ytMaxRetries,
+    baseDelayMs: config.ytBackoffMs,
+    maxDelayMs: config.ytBackoffMs * 8,
+  }),
   new TtlCache(config.cacheTtlSeconds * 1000),
 );
 const store = new MbidStore(config.databasePath);
