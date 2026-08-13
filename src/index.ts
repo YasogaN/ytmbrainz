@@ -16,11 +16,21 @@ import { urlService } from '@/ws/services/url';
 const config = loadConfig();
 
 const source = new CachingSource(
-  new RetryingSource(new RateLimitedSource(new InnerTubeSource(), config.ytMinIntervalMs), {
-    maxRetries: config.ytMaxRetries,
-    baseDelayMs: config.ytBackoffMs,
-    maxDelayMs: config.ytBackoffMs * 8,
-  }),
+  new RetryingSource(
+    new RateLimitedSource(
+      new InnerTubeSource({
+        ...(config.visitorData !== null && { visitorData: config.visitorData }),
+        ...(config.cookie !== null && { cookie: config.cookie }),
+        ...(config.poToken !== null && { poToken: config.poToken }),
+      }),
+      config.ytMinIntervalMs,
+    ),
+    {
+      maxRetries: config.ytMaxRetries,
+      baseDelayMs: config.ytBackoffMs,
+      maxDelayMs: config.ytBackoffMs * 8,
+    },
+  ),
   new TtlCache(config.cacheTtlSeconds * 1000),
 );
 const store = new MbidStore(config.databasePath);

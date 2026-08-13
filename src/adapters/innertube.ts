@@ -6,6 +6,7 @@ import type { YtAlbum, YtAlbumRef, YtArtist, YtArtistPage, YtTrack } from '@/ada
 export interface InnerTubeOptions {
   cookie?: string;
   visitorData?: string;
+  poToken?: string;
 }
 
 interface RunLike {
@@ -210,6 +211,7 @@ export class InnerTubeSource implements YouTubeSource {
       generate_session_locally: true,
       ...(options.cookie !== undefined && { cookie: options.cookie }),
       ...(options.visitorData !== undefined && { visitor_data: options.visitorData }),
+      ...(options.poToken !== undefined && { po_token: options.poToken }),
     });
   }
 

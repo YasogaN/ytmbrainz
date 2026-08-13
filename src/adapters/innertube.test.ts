@@ -13,6 +13,7 @@ interface MusicShim {
 }
 
 let music: MusicShim;
+let createOptions: Record<string, unknown> | undefined;
 
 beforeEach(() => {
   music = {
@@ -21,10 +22,16 @@ beforeEach(() => {
     getArtist: mock(),
     getInfo: mock(),
   };
+  createOptions = undefined;
 });
 
 mock.module('youtubei.js', () => ({
-  Innertube: { create: async () => ({ music }) },
+  Innertube: {
+    create: async (options: Record<string, unknown>) => {
+      createOptions = options;
+      return { music };
+    },
+  },
   ClientType: { MUSIC: 'WEB_REMIX' },
 }));
 
@@ -44,6 +51,21 @@ const songItem = (overrides: Record<string, unknown> = {}) => ({
 });
 
 describe('InnerTubeSource', () => {
+  it('passes session options through to session creation', () => {
+    new InnerTubeSource({
+      cookie: 'SID=abc',
+      visitorData: 'visitor123',
+      poToken: 'potok',
+    });
+
+    expect(createOptions).toMatchObject({
+      client_type: 'WEB_REMIX',
+      cookie: 'SID=abc',
+      visitor_data: 'visitor123',
+      po_token: 'potok',
+    });
+  });
+
   it('maps song search results', async () => {
     music.search.mockReturnValue({ songs: { contents: [songItem()] } });
     const source = new InnerTubeSource();
