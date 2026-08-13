@@ -1,7 +1,14 @@
 import { Database } from 'bun:sqlite';
 import { createHash } from 'node:crypto';
 
-export type EntityType = 'artist' | 'recording' | 'release' | 'release-group' | 'url';
+export type EntityType =
+  | 'artist'
+  | 'recording'
+  | 'release'
+  | 'release-group'
+  | 'url'
+  | 'track'
+  | 'medium';
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -40,6 +47,8 @@ const ENTITY_NAMESPACES: Record<EntityType, string> = {
   release: uuidV5(ROOT_NAMESPACE, 'ytmbrainz.release'),
   'release-group': uuidV5(ROOT_NAMESPACE, 'ytmbrainz.release-group'),
   url: uuidV5(ROOT_NAMESPACE, 'ytmbrainz.url'),
+  track: uuidV5(ROOT_NAMESPACE, 'ytmbrainz.track'),
+  medium: uuidV5(ROOT_NAMESPACE, 'ytmbrainz.medium'),
 };
 
 export function toMbid(entity: EntityType, sourceId: string): string {

@@ -14,6 +14,7 @@ export interface ArtistCredit {
 }
 
 export interface Artist {
+  entity: 'artist';
   id: string;
   name: string;
   sortName: string;
@@ -31,6 +32,7 @@ export interface ReleaseRef {
 }
 
 export interface Recording {
+  entity: 'recording';
   id: string;
   title: string;
   video: boolean;
@@ -47,10 +49,10 @@ export interface Track {
   number: string;
   title: string;
   length: number | null;
-  artistCredits: ArtistCredit[];
 }
 
 export interface Medium {
+  id: string;
   position: number;
   format: string;
   trackCount: number;
@@ -65,6 +67,7 @@ export interface ReleaseGroupRef {
 }
 
 export interface Release {
+  entity: 'release';
   id: string;
   title: string;
   status: string | null;
@@ -79,6 +82,7 @@ export interface Release {
 }
 
 export interface ReleaseGroup {
+  entity: 'release-group';
   id: string;
   title: string;
   primaryType: string | null;
@@ -91,6 +95,7 @@ export interface ReleaseGroup {
 }
 
 export interface Url {
+  entity: 'url';
   id: string;
   resource: string;
   score: number | null;
