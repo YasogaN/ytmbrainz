@@ -1,6 +1,8 @@
 import { InnerTubeSource } from '@/adapters/innertube';
 import { loadConfig } from '@/core/config';
 import { MbidStore } from '@/core/mbid';
+import { CachingSource, TtlCache } from '@/server/cache';
+import { RateLimitedSource } from '@/server/rateLimit';
 import { createApp } from '@/ws/app';
 import { artistService } from '@/ws/services/artist';
 import { recordingService } from '@/ws/services/recording';
@@ -10,7 +12,10 @@ import { urlService } from '@/ws/services/url';
 
 const config = loadConfig();
 
-const source = new InnerTubeSource();
+const source = new CachingSource(
+  new RateLimitedSource(new InnerTubeSource(), config.ytMinIntervalMs),
+  new TtlCache(config.cacheTtlSeconds * 1000),
+);
 const store = new MbidStore(config.databasePath);
 const app = createApp({
   source,

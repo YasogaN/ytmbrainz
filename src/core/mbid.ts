@@ -1,5 +1,7 @@
 import { Database } from 'bun:sqlite';
 import { createHash } from 'node:crypto';
+import { mkdirSync } from 'node:fs';
+import { dirname } from 'node:path';
 
 export type EntityType =
   | 'artist'
@@ -71,6 +73,9 @@ export class MbidStore {
   private readonly db: Database;
 
   constructor(path: string) {
+    if (path !== ':memory:') {
+      mkdirSync(dirname(path), { recursive: true });
+    }
     this.db = new Database(path);
     this.db.run(`
       CREATE TABLE IF NOT EXISTS idmap (

@@ -8,6 +8,7 @@ describe('loadConfig', () => {
     expect(config.host).toBe('127.0.0.1');
     expect(config.port).toBe(3000);
     expect(config.cacheTtlSeconds).toBe(3600);
+    expect(config.ytMinIntervalMs).toBe(1000);
     expect(config.databasePath).toBe('./data/ytmbrainz.db');
   });
 
@@ -16,12 +17,14 @@ describe('loadConfig', () => {
       YTMB_HOST: '0.0.0.0',
       YTMB_PORT: '8080',
       YTMB_CACHE_TTL: '60',
+      YTMB_YT_RATE_LIMIT_MS: '500',
       YTMB_DB_PATH: '/tmp/ytmb.db',
     });
 
     expect(config.host).toBe('0.0.0.0');
     expect(config.port).toBe(8080);
     expect(config.cacheTtlSeconds).toBe(60);
+    expect(config.ytMinIntervalMs).toBe(500);
     expect(config.databasePath).toBe('/tmp/ytmb.db');
   });
 
