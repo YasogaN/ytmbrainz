@@ -145,11 +145,18 @@ describe('InnerTubeSource', () => {
     expect(await source.searchArtists('nothing')).toEqual([]);
   });
 
-  it('returns null when getAlbum throws', async () => {
-    music.getAlbum.mockRejectedValue(new Error('not found'));
+  it('returns null when getAlbum reports a missing entity', async () => {
+    music.getAlbum.mockRejectedValue(new Error('Video unavailable'));
     const source = new InnerTubeSource();
 
     expect(await source.getAlbum('MPREb_missing')).toBeNull();
+  });
+
+  it('surfaces an upstream failure from getAlbum', async () => {
+    music.getAlbum.mockRejectedValue(new Error('network down'));
+    const source = new InnerTubeSource();
+
+    await expect(source.getAlbum('MPREb_missing')).rejects.toThrow();
   });
 
   it('maps an album with a detail header', async () => {
@@ -220,11 +227,18 @@ describe('InnerTubeSource', () => {
     });
   });
 
-  it('returns null when getArtist throws', async () => {
-    music.getArtist.mockRejectedValue(new Error('not found'));
+  it('returns null when getArtist reports a missing entity', async () => {
+    music.getArtist.mockRejectedValue(new Error('Video unavailable'));
     const source = new InnerTubeSource();
 
     expect(await source.getArtist('UC-missing')).toBeNull();
+  });
+
+  it('surfaces an upstream failure from getArtist', async () => {
+    music.getArtist.mockRejectedValue(new Error('network down'));
+    const source = new InnerTubeSource();
+
+    await expect(source.getArtist('UC-missing')).rejects.toThrow();
   });
 
   it('maps an artist page with albums, singles, and top songs', async () => {
@@ -330,8 +344,11 @@ describe('InnerTubeSource', () => {
       year: null,
     });
 
-    music.getInfo.mockRejectedValue(new Error('gone'));
+    music.getInfo.mockRejectedValue(new Error('Video unavailable'));
     expect(await source.getSong('video-gone')).toBeNull();
+
+    music.getInfo.mockRejectedValue(new Error('network down'));
+    await expect(source.getSong('video-down')).rejects.toThrow();
   });
 
   it('uses the requested id when basic info lacks one', async () => {

@@ -1,4 +1,5 @@
 import { type Clients, ClientType, Innertube, type YTMusic, type YTNodes } from 'youtubei.js';
+import { toNotFoundOrThrow } from '@/adapters/errors';
 import type { YouTubeSource } from '@/adapters/source';
 import type { YtAlbum, YtAlbumRef, YtArtist, YtArtistPage, YtTrack } from '@/adapters/types';
 
@@ -196,8 +197,8 @@ export class InnerTubeSource implements YouTubeSource {
     let album: YTMusic.Album;
     try {
       album = await music.getAlbum(id);
-    } catch {
-      return null;
+    } catch (error) {
+      return toNotFoundOrThrow(error);
     }
     const info = albumHeaderInfo(album.header);
     const tracks = album.contents
@@ -218,8 +219,8 @@ export class InnerTubeSource implements YouTubeSource {
     let artist: YTMusic.Artist;
     try {
       artist = await music.getArtist(id);
-    } catch {
-      return null;
+    } catch (error) {
+      return toNotFoundOrThrow(error);
     }
     const name = artist.header?.title?.toString() ?? '';
     const albums: YtAlbumRef[] = [];
@@ -246,8 +247,8 @@ export class InnerTubeSource implements YouTubeSource {
     let info: YTMusic.TrackInfo;
     try {
       info = await music.getInfo(id);
-    } catch {
-      return null;
+    } catch (error) {
+      return toNotFoundOrThrow(error);
     }
     const basic = info.basic_info;
     return {
