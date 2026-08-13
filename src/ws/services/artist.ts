@@ -1,5 +1,5 @@
 import type { Entity } from '@/core/entities';
-import { mapArtist, registerArtist } from '@/mappers/artist';
+import { mapArtist, mapArtistPage, registerArtist } from '@/mappers/artist';
 import { parseQuery } from '@/query/parser';
 import { translateArtist } from '@/query/translate';
 import type { EntityService, HandlerContext } from '@/ws/app';
@@ -34,12 +34,19 @@ export const artistService: EntityService = {
     mbid: string,
     searchParams: URLSearchParams,
   ): Promise<Entity | null> {
-    validateInc(parseInc(searchParams), ARTIST_INC);
+    const inc = parseInc(searchParams);
+    validateInc(inc, ARTIST_INC);
     const key = context.store.lookup(mbid);
     if (key === null || key.entity !== 'artist') {
       return null;
     }
-    const artist = await context.source.getArtist(key.sourceId);
-    return artist === null ? null : mapArtist(artist);
+    const page = await context.source.getArtist(key.sourceId);
+    return page === null
+      ? null
+      : mapArtistPage(page, {
+          includeRecordings: inc.includes('recordings'),
+          includeReleases: inc.includes('releases'),
+          includeReleaseGroups: inc.includes('release-groups'),
+        });
   },
 };

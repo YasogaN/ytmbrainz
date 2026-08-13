@@ -150,6 +150,25 @@ describe('release lookup', () => {
     store.close();
   });
 
+  it('includes recordings with inc=recordings', async () => {
+    const { app, store } = makeApp();
+    store.register('release', 'MPREb_1');
+
+    const response = await app(
+      new Request(
+        `http://localhost/ws/2/release/${toMbid('release', 'MPREb_1')}?inc=recordings&fmt=json`,
+      ),
+    );
+
+    expect(response.status).toBe(200);
+    const body = (await response.json()) as {
+      recordings: Array<{ title: string; length: number }>;
+    };
+    expect(body.recordings).toHaveLength(2);
+    expect(body.recordings[0]).toMatchObject({ title: 'Roygbiv', length: 148000 });
+    store.close();
+  });
+
   it('resolves an MBID served by a previous search', async () => {
     const { app, store } = makeApp();
     await app(new Request('http://localhost/ws/2/release?query=music%20has&fmt=json'));

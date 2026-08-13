@@ -8,9 +8,25 @@ const makeApp = () => {
   const source = new FakeSource().seedArtist({
     id: 'UC-artist',
     name: 'Boards of Canada',
-    albums: [],
+    albums: [
+      {
+        id: 'MPREb_1',
+        name: 'Music Has the Right to Children',
+        artists: [{ id: 'UC-artist', name: 'Boards of Canada' }],
+        year: '1998',
+      },
+    ],
     singles: [],
-    topTracks: [],
+    topTracks: [
+      {
+        id: 'video-1',
+        title: 'Roygbiv',
+        artists: [{ id: 'UC-artist', name: 'Boards of Canada' }],
+        album: null,
+        durationSeconds: 148,
+        year: '1998',
+      },
+    ],
   });
   const store = new MbidStore(':memory:');
   const app = createApp({ source, store, services: { artist: artistService } });
@@ -132,6 +148,32 @@ describe('artist lookup', () => {
     );
 
     expect(response.status).toBe(200);
+    store.close();
+  });
+
+  it('populates recordings, releases, and release groups with inc', async () => {
+    const { app, store } = makeApp();
+    store.register('artist', 'UC-artist');
+    const mbid = toMbid('artist', 'UC-artist');
+
+    const response = await app(
+      new Request(
+        `http://localhost/ws/2/artist/${mbid}?inc=recordings+releases+release-groups&fmt=json`,
+      ),
+    );
+
+    expect(response.status).toBe(200);
+    const body = (await response.json()) as {
+      recordings: Array<{ title: string }>;
+      releases: Array<{ id: string }>;
+      'release-groups': Array<{ id: string }>;
+    };
+    expect(body.recordings).toHaveLength(1);
+    expect(body.recordings[0]?.title).toBe('Roygbiv');
+    expect(body.releases).toHaveLength(1);
+    expect(body.releases[0]?.id).toBe(toMbid('release', 'MPREb_1'));
+    expect(body['release-groups']).toHaveLength(1);
+    expect(body['release-groups'][0]?.id).toBe(toMbid('release-group', 'MPREb_1'));
     store.close();
   });
 });

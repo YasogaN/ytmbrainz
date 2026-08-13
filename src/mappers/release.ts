@@ -2,6 +2,7 @@ import type { YtAlbum, YtAlbumRef, YtArtist } from '@/adapters/types';
 import type { Medium, Release } from '@/core/entities';
 import { type MbidStore, toMbid } from '@/core/mbid';
 import { toArtistCredits } from '@/mappers/credit';
+import { mapRecording } from '@/mappers/recording';
 import { inferPrimaryType } from '@/mappers/type';
 
 export function mapReleaseRef(album: YtAlbumRef, score: number | null = null): Release {
@@ -26,7 +27,11 @@ export function mapReleaseRef(album: YtAlbumRef, score: number | null = null): R
   };
 }
 
-export function mapRelease(album: YtAlbum): Release {
+export interface MapReleaseOptions {
+  includeRecordings?: boolean;
+}
+
+export function mapRelease(album: YtAlbum, options: MapReleaseOptions = {}): Release {
   const media: Medium[] =
     album.tracks.length === 0
       ? []
@@ -62,6 +67,9 @@ export function mapRelease(album: YtAlbum): Release {
       title: album.name,
     },
     score: null,
+    ...(options.includeRecordings === true && {
+      recordings: album.tracks.map(mapRecording),
+    }),
   };
 }
 

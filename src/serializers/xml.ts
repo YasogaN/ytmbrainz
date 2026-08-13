@@ -116,12 +116,31 @@ function releaseGroupRefXml(group: ReleaseGroupRef): string {
 }
 
 function artistXml(artist: Artist): string {
+  const subqueries =
+    (artist.recordings !== undefined && artist.recordings.length > 0
+      ? el(
+          'recording-list',
+          { count: artist.recordings.length },
+          artist.recordings.map(recordingXml).join(''),
+        )
+      : '') +
+    (artist.releases !== undefined && artist.releases.length > 0
+      ? releaseListXml(artist.releases)
+      : '') +
+    (artist.releaseGroups !== undefined && artist.releaseGroups.length > 0
+      ? el(
+          'release-group-list',
+          { count: artist.releaseGroups.length },
+          artist.releaseGroups.map(releaseGroupRefXml).join(''),
+        )
+      : '');
   const children =
     textEl('name', artist.name) +
     textEl('sort-name', artist.sortName) +
     (artist.country === null ? '' : textEl('country', artist.country)) +
     (artist.disambiguation === null ? '' : textEl('disambiguation', artist.disambiguation)) +
-    el('life-span', {}, textEl('ended', artist.ended ? 'true' : 'false'));
+    el('life-span', {}, textEl('ended', artist.ended ? 'true' : 'false')) +
+    subqueries;
   return el('artist', { id: artist.id, type: artist.type, 'ns2:score': artist.score }, children);
 }
 
@@ -155,7 +174,14 @@ function releaseXml(release: Release): string {
           el('release-event', {}, textEl('date', release.date)),
         )) +
     (release.barcode === null ? '' : textEl('barcode', release.barcode)) +
-    mediumListXml(release.media);
+    mediumListXml(release.media) +
+    (release.recordings !== undefined && release.recordings.length > 0
+      ? el(
+          'recording-list',
+          { count: release.recordings.length },
+          release.recordings.map(recordingXml).join(''),
+        )
+      : '');
   return el('release', { id: release.id, 'ns2:score': release.score }, children);
 }
 

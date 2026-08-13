@@ -23,6 +23,9 @@ export interface Artist {
   disambiguation: string | null;
   ended: boolean;
   score: number | null;
+  recordings?: Recording[];
+  releases?: ReleaseRef[];
+  releaseGroups?: ReleaseGroupRef[];
 }
 
 export interface ReleaseRef {
@@ -79,6 +82,7 @@ export interface Release {
   media: Medium[];
   releaseGroup: ReleaseGroupRef | null;
   score: number | null;
+  recordings?: Recording[];
 }
 
 export interface ReleaseGroup {

@@ -172,6 +172,31 @@ describe('lookupToXml', () => {
     );
   });
 
+  it('serializes an artist with subqueries', () => {
+    const rich: Artist = {
+      ...artist,
+      recordings: [recording],
+      releases: [{ id: 'rel-mbid', title: 'Music Has the Right to Children', date: '1998' }],
+      releaseGroups: [
+        {
+          id: 'rg-mbid',
+          primaryType: 'Album',
+          secondaryTypes: [],
+          title: 'Music Has the Right to Children',
+        },
+      ],
+    };
+
+    const xml = lookupToXml(created, rich);
+    expect(xml).toContain('<recording-list count="1"><recording id="rec-mbid"');
+    expect(xml).toContain(
+      '<release-list count="1"><release id="rel-mbid"><title>Music Has the Right to Children</title><date>1998</date></release></release-list>',
+    );
+    expect(xml).toContain(
+      '<release-group-list count="1"><release-group id="rg-mbid"><title>Music Has the Right to Children</title><primary-type>Album</primary-type></release-group></release-group-list>',
+    );
+  });
+
   it('serializes a release with media', () => {
     expect(lookupToXml(created, release)).toBe(
       metadata(
@@ -188,6 +213,14 @@ describe('lookupToXml', () => {
           '<track id="track-mbid-2"><number>2</number><title>Turquoise Hexagon Sun</title></track></track-list>' +
           '</medium></medium-list></release>',
       ),
+    );
+  });
+
+  it('serializes a release with its recordings', () => {
+    const withRecordings: Release = { ...release, recordings: [recording] };
+
+    expect(lookupToXml(created, withRecordings)).toContain(
+      '<recording-list count="1"><recording id="rec-mbid" ns2:score="100">',
     );
   });
 

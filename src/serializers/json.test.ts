@@ -187,6 +187,41 @@ describe('entityToJson', () => {
     });
   });
 
+  it('serializes a release with its recordings', () => {
+    const withRecordings: Release = { ...release, recordings: [recording] };
+
+    expect(entityToJson(withRecordings).recordings).toEqual([entityToJson(recording)]);
+  });
+
+  it('serializes an artist with subqueries', () => {
+    const rich: Artist = {
+      ...artist,
+      recordings: [recording],
+      releases: [{ id: 'rel-mbid', title: 'Music Has the Right to Children', date: '1998' }],
+      releaseGroups: [
+        {
+          id: 'rg-mbid',
+          primaryType: 'Album',
+          secondaryTypes: [],
+          title: 'Music Has the Right to Children',
+        },
+      ],
+    };
+
+    expect(entityToJson(rich)).toMatchObject({
+      recordings: [entityToJson(recording)],
+      releases: [{ id: 'rel-mbid', title: 'Music Has the Right to Children', date: '1998' }],
+      'release-groups': [
+        {
+          id: 'rg-mbid',
+          'primary-type': 'Album',
+          'secondary-types': [],
+          title: 'Music Has the Right to Children',
+        },
+      ],
+    });
+  });
+
   it('serializes a release group', () => {
     expect(entityToJson(releaseGroup)).toEqual({
       id: 'rg-mbid',

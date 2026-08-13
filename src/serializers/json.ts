@@ -73,6 +73,18 @@ function artistJson(artist: Artist): JsonObject {
     ...(artist.country !== null && { country: artist.country }),
     ...(artist.disambiguation !== null && { disambiguation: artist.disambiguation }),
     'life-span': { ended: artist.ended },
+    ...(artist.recordings !== undefined &&
+      artist.recordings.length > 0 && {
+        recordings: artist.recordings.map(recordingJson),
+      }),
+    ...(artist.releases !== undefined &&
+      artist.releases.length > 0 && {
+        releases: artist.releases.map(releaseRefJson),
+      }),
+    ...(artist.releaseGroups !== undefined &&
+      artist.releaseGroups.length > 0 && {
+        'release-groups': artist.releaseGroups.map(releaseGroupRefJson),
+      }),
   };
 }
 
@@ -110,6 +122,10 @@ function releaseJson(release: Release): JsonObject {
     ...(release.releaseGroup !== null && {
       'release-group': releaseGroupRefJson(release.releaseGroup),
     }),
+    ...(release.recordings !== undefined &&
+      release.recordings.length > 0 && {
+        recordings: release.recordings.map(recordingJson),
+      }),
   };
 }
 

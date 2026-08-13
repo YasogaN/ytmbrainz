@@ -66,12 +66,15 @@ export const releaseService: EntityService = {
     mbid: string,
     searchParams: URLSearchParams,
   ): Promise<Entity | null> {
-    validateInc(parseInc(searchParams), RELEASE_INC);
+    const inc = parseInc(searchParams);
+    validateInc(inc, RELEASE_INC);
     const key = context.store.lookup(mbid);
     if (key === null || key.entity !== 'release') {
       return null;
     }
     const album = await context.source.getAlbum(key.sourceId);
-    return album === null ? null : mapRelease(album);
+    return album === null
+      ? null
+      : mapRelease(album, { includeRecordings: inc.includes('recordings') });
   },
 };
