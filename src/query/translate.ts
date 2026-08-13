@@ -64,11 +64,10 @@ function combineOperands(
   joins: Array<'and' | 'or'>,
 ): (entity: Entity) => boolean {
   let filter: (entity: Entity) => boolean = () => true;
-  for (let i = 0; i < operands.length; i += 1) {
-    const operand = operands[i];
+  for (const [index, operand] of operands.entries()) {
     const previous = filter;
     filter =
-      i === 0 || joins[i] === 'and'
+      index === 0 || joins[index] === 'and'
         ? entity => previous(entity) && operand(entity)
         : entity => previous(entity) || operand(entity);
   }
