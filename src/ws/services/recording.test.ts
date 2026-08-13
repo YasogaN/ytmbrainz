@@ -24,10 +24,27 @@ const aquarius: YtTrack = {
 };
 
 const makeApp = () => {
-  const source = new FakeSource().seedTrack(roygbiv).seedTrack(aquarius);
+  const source = new FakeSource()
+    .seedTrack(roygbiv)
+    .seedTrack(aquarius)
+    .seedAlbum({
+      id: 'MPREb_1',
+      name: 'Music Has the Right to Children',
+      artists: [{ id: 'UC-artist', name: 'Boards of Canada' }],
+      year: '1998',
+      description: null,
+      tracks: [roygbiv, aquarius],
+    })
+    .seedArtist({
+      id: 'UC-artist',
+      name: 'Boards of Canada',
+      albums: [],
+      singles: [],
+      topTracks: [roygbiv, aquarius],
+    });
   const store = new MbidStore(':memory:');
   const app = createApp({ source, store, services: { recording: recordingService } });
-  return { app, store };
+  return { app, store, source };
 };
 
 describe('recording search', () => {
@@ -169,6 +186,118 @@ describe('recording lookup', () => {
     );
 
     expect(response.status).toBe(200);
+    store.close();
+  });
+});
+
+describe('recording browse', () => {
+  it('lists recordings by an artist', async () => {
+    const { app, store } = makeApp();
+    store.register('artist', 'UC-artist');
+    const artistMbid = toMbid('artist', 'UC-artist');
+
+    const response = await app(
+      new Request(`http://localhost/ws/2/recording?artist=${artistMbid}&fmt=json`),
+    );
+
+    expect(response.status).toBe(200);
+    const body = (await response.json()) as { count: number; recordings: Array<{ title: string }> };
+    expect(body.count).toBe(2);
+    expect(body.recordings.map(recording => recording.title)).toEqual(['Roygbiv', 'Aquarius']);
+    store.close();
+  });
+
+  it('lists recordings on a release', async () => {
+    const { app, store } = makeApp();
+    store.register('release', 'MPREb_1');
+    const releaseMbid = toMbid('release', 'MPREb_1');
+
+    const response = await app(
+      new Request(`http://localhost/ws/2/recording?release=${releaseMbid}&fmt=json`),
+    );
+
+    expect(((await response.json()) as { count: number }).count).toBe(2);
+    store.close();
+  });
+
+  it('returns an empty list for an unknown linked entity', async () => {
+    const { app, store } = makeApp();
+    const response = await app(
+      new Request(
+        'http://localhost/ws/2/recording?artist=00000000-0000-4000-8000-0000000000ff&fmt=json',
+      ),
+    );
+
+    expect(((await response.json()) as { count: number }).count).toBe(0);
+    store.close();
+  });
+
+  it('returns an empty list for a malformed linked mbid', async () => {
+    const { app, store } = makeApp();
+    const response = await app(
+      new Request('http://localhost/ws/2/recording?artist=not-a-uuid&fmt=json'),
+    );
+
+    expect(((await response.json()) as { count: number }).count).toBe(0);
+    store.close();
+  });
+
+  it('returns an empty list when the linked mbid maps to another entity', async () => {
+    const { app, store } = makeApp();
+    store.register('release', 'MPREb_1');
+    const releaseMbid = toMbid('release', 'MPREb_1');
+
+    const response = await app(
+      new Request(`http://localhost/ws/2/recording?artist=${releaseMbid}&fmt=json`),
+    );
+
+    expect(((await response.json()) as { count: number }).count).toBe(0);
+    store.close();
+  });
+
+  it('returns an empty list when the release is unknown', async () => {
+    const { app, store } = makeApp();
+    const response = await app(
+      new Request(
+        'http://localhost/ws/2/recording?release=00000000-0000-4000-8000-0000000000ff&fmt=json',
+      ),
+    );
+
+    expect(((await response.json()) as { count: number }).count).toBe(0);
+    store.close();
+  });
+
+  it('returns an empty list when the artist page is unavailable', async () => {
+    const { app, store } = makeApp();
+    store.register('artist', 'UC-other');
+    const artistMbid = toMbid('artist', 'UC-other');
+
+    const response = await app(
+      new Request(`http://localhost/ws/2/recording?artist=${artistMbid}&fmt=json`),
+    );
+
+    expect(((await response.json()) as { count: number }).count).toBe(0);
+    store.close();
+  });
+
+  it('returns an empty list when the release album is unavailable', async () => {
+    const { app, store } = makeApp();
+    store.register('release', 'MPREb_missing');
+    const releaseMbid = toMbid('release', 'MPREb_missing');
+
+    const response = await app(
+      new Request(`http://localhost/ws/2/recording?release=${releaseMbid}&fmt=json`),
+    );
+
+    expect(((await response.json()) as { count: number }).count).toBe(0);
+    store.close();
+  });
+
+  it('rejects a browse without a linked entity', async () => {
+    const { store, source } = makeApp();
+    const context = { source, store, format: 'json' as const };
+
+    await expect(recordingService.browse?.(context, new URLSearchParams())).rejects.toThrow();
     store.close();
   });
 });

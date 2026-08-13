@@ -23,12 +23,21 @@ export interface HandlerContext {
 
 export interface EntityService {
   search(context: HandlerContext, searchParams: URLSearchParams): Promise<Entity[]>;
+  browse?(context: HandlerContext, searchParams: URLSearchParams): Promise<Entity[]>;
   lookup(
     context: HandlerContext,
     mbid: string,
     searchParams: URLSearchParams,
   ): Promise<Entity | null>;
 }
+
+const BROWSE_PARAMS: Record<WsEntityType, readonly string[]> = {
+  artist: [],
+  recording: ['artist', 'release'],
+  release: ['artist', 'release-group'],
+  'release-group': ['artist'],
+  url: [],
+};
 
 export interface AppOptions {
   source: YouTubeSource;
@@ -90,6 +99,12 @@ export function createApp(options: AppOptions): (request: Request) => Promise<Re
   };
 }
 
+function findBrowseParam(entity: WsEntityType, searchParams: URLSearchParams): string | undefined {
+  return searchParams.get('query') === null
+    ? BROWSE_PARAMS[entity].find(param => searchParams.get(param) !== null)
+    : undefined;
+}
+
 async function handle(request: Request, url: URL, context: RequestContext): Promise<Response> {
   if (request.method !== 'GET') {
     return errorToResponse(new WsError(405, 'Method Not Allowed'), context.format);
@@ -128,7 +143,11 @@ async function handle(request: Request, url: URL, context: RequestContext): Prom
     limit: parseLimit(searchParams.get('limit')),
     offset: parseOffset(searchParams.get('offset')),
   };
-  const all = await service.search(context, searchParams);
+  const browseParam = findBrowseParam(route.entity, searchParams);
+  const all =
+    browseParam === undefined
+      ? await service.search(context, searchParams)
+      : await (service.browse ?? service.search)(context, searchParams);
   const items = all.slice(page.offset, page.offset + page.limit);
   return respondList(context, route.entity, items, all.length, page.offset);
 }

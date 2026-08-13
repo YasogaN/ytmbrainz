@@ -6,6 +6,7 @@ import type { EntityService, HandlerContext } from '@/ws/app';
 import { badRequest } from '@/ws/errors';
 import { RELEASE_GROUP_INC, validateInc } from '@/ws/inc';
 import { parseInc } from '@/ws/params';
+import { resolveLinked } from '@/ws/services/linked';
 
 export const releaseGroupService: EntityService = {
   async search(context: HandlerContext, searchParams: URLSearchParams): Promise<Entity[]> {
@@ -24,6 +25,28 @@ export const releaseGroupService: EntityService = {
       groups.push(mapReleaseGroupRef(album, Math.max(100 - index, 0)));
     }
     return groups.filter(translated.filter);
+  },
+
+  async browse(context: HandlerContext, searchParams: URLSearchParams): Promise<Entity[]> {
+    const artistMbid = searchParams.get('artist');
+    if (artistMbid === null) {
+      throw badRequest('Missing browse parameter.');
+    }
+    const channelId = resolveLinked(context.store, artistMbid, 'artist');
+    if (channelId === null) {
+      return [];
+    }
+    const artist = await context.source.getArtist(channelId);
+    if (artist === null) {
+      return [];
+    }
+    const albums = [...artist.albums, ...artist.singles];
+    const groups: Entity[] = [];
+    for (const album of albums) {
+      registerReleaseGroup(context.store, album);
+      groups.push(mapReleaseGroupRef(album));
+    }
+    return groups;
   },
 
   async lookup(

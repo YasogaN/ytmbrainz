@@ -31,10 +31,23 @@ const album = {
 };
 
 const makeApp = () => {
-  const source = new FakeSource().seedAlbum(album);
+  const source = new FakeSource().seedAlbum(album).seedArtist({
+    id: 'UC-artist',
+    name: 'Boards of Canada',
+    albums: [
+      {
+        id: 'MPREb_1',
+        name: 'Music Has the Right to Children',
+        artists: [{ id: 'UC-artist', name: 'Boards of Canada' }],
+        year: '1998',
+      },
+    ],
+    singles: [],
+    topTracks: [],
+  });
   const store = new MbidStore(':memory:');
   const app = createApp({ source, store, services: { 'release-group': releaseGroupService } });
-  return { app, store };
+  return { app, store, source };
 };
 
 describe('release-group search', () => {
@@ -166,6 +179,60 @@ describe('release-group lookup', () => {
     );
 
     expect(response.status).toBe(400);
+    store.close();
+  });
+});
+
+describe('release-group browse', () => {
+  it('lists release groups by an artist', async () => {
+    const { app, store } = makeApp();
+    store.register('artist', 'UC-artist');
+    const artistMbid = toMbid('artist', 'UC-artist');
+
+    const response = await app(
+      new Request(`http://localhost/ws/2/release-group?artist=${artistMbid}&fmt=json`),
+    );
+
+    expect(response.status).toBe(200);
+    const body = (await response.json()) as {
+      count: number;
+      'release-groups': Array<{ title: string }>;
+    };
+    expect(body.count).toBe(1);
+    expect(body['release-groups'][0]?.title).toBe('Music Has the Right to Children');
+    store.close();
+  });
+
+  it('returns an empty list for an unknown linked entity', async () => {
+    const { app, store } = makeApp();
+    const response = await app(
+      new Request(
+        'http://localhost/ws/2/release-group?artist=00000000-0000-4000-8000-0000000000ff&fmt=json',
+      ),
+    );
+
+    expect(((await response.json()) as { count: number }).count).toBe(0);
+    store.close();
+  });
+
+  it('returns an empty list when the artist page is unavailable', async () => {
+    const { app, store } = makeApp();
+    store.register('artist', 'UC-other');
+    const artistMbid = toMbid('artist', 'UC-other');
+
+    const response = await app(
+      new Request(`http://localhost/ws/2/release-group?artist=${artistMbid}&fmt=json`),
+    );
+
+    expect(((await response.json()) as { count: number }).count).toBe(0);
+    store.close();
+  });
+
+  it('rejects a browse without a linked entity', async () => {
+    const { store, source } = makeApp();
+    const context = { source, store, format: 'json' as const };
+
+    await expect(releaseGroupService.browse?.(context, new URLSearchParams())).rejects.toThrow();
     store.close();
   });
 });

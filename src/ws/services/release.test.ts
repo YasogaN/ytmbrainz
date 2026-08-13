@@ -31,10 +31,23 @@ const album = {
 };
 
 const makeApp = () => {
-  const source = new FakeSource().seedAlbum(album);
+  const source = new FakeSource().seedAlbum(album).seedArtist({
+    id: 'UC-artist',
+    name: 'Boards of Canada',
+    albums: [
+      {
+        id: 'MPREb_1',
+        name: 'Music Has the Right to Children',
+        artists: [{ id: 'UC-artist', name: 'Boards of Canada' }],
+        year: '1998',
+      },
+    ],
+    singles: [],
+    topTracks: [],
+  });
   const store = new MbidStore(':memory:');
   const app = createApp({ source, store, services: { release: releaseService } });
-  return { app, store };
+  return { app, store, source };
 };
 
 describe('release search', () => {
@@ -166,6 +179,98 @@ describe('release lookup', () => {
     const response = await app(new Request(`http://localhost/ws/2/release/${mbid}?inc=bogus`));
 
     expect(response.status).toBe(400);
+    store.close();
+  });
+});
+
+describe('release browse', () => {
+  it('lists releases by an artist', async () => {
+    const { app, store } = makeApp();
+    store.register('artist', 'UC-artist');
+    const artistMbid = toMbid('artist', 'UC-artist');
+
+    const response = await app(
+      new Request(`http://localhost/ws/2/release?artist=${artistMbid}&fmt=json`),
+    );
+
+    expect(response.status).toBe(200);
+    const body = (await response.json()) as { count: number; releases: Array<{ title: string }> };
+    expect(body.count).toBe(1);
+    expect(body.releases[0]?.title).toBe('Music Has the Right to Children');
+    store.close();
+  });
+
+  it('returns a release for a release-group browse', async () => {
+    const { app, store } = makeApp();
+    store.register('release-group', 'MPREb_1');
+    const rgMbid = toMbid('release-group', 'MPREb_1');
+
+    const response = await app(
+      new Request(`http://localhost/ws/2/release?release-group=${rgMbid}&fmt=json`),
+    );
+
+    expect(response.status).toBe(200);
+    const body = (await response.json()) as { count: number; releases: Array<{ title: string }> };
+    expect(body.count).toBe(1);
+    expect(body.releases[0]?.title).toBe('Music Has the Right to Children');
+    store.close();
+  });
+
+  it('returns an empty list for an unknown linked entity', async () => {
+    const { app, store } = makeApp();
+    const response = await app(
+      new Request(
+        'http://localhost/ws/2/release?artist=00000000-0000-4000-8000-0000000000ff&fmt=json',
+      ),
+    );
+
+    expect(((await response.json()) as { count: number }).count).toBe(0);
+    store.close();
+  });
+
+  it('returns an empty list when the artist page is unavailable', async () => {
+    const { app, store } = makeApp();
+    store.register('artist', 'UC-other');
+    const artistMbid = toMbid('artist', 'UC-other');
+
+    const response = await app(
+      new Request(`http://localhost/ws/2/release?artist=${artistMbid}&fmt=json`),
+    );
+
+    expect(((await response.json()) as { count: number }).count).toBe(0);
+    store.close();
+  });
+
+  it('returns an empty list when the release-group is unknown', async () => {
+    const { app, store } = makeApp();
+    const response = await app(
+      new Request(
+        'http://localhost/ws/2/release?release-group=00000000-0000-4000-8000-0000000000ff&fmt=json',
+      ),
+    );
+
+    expect(((await response.json()) as { count: number }).count).toBe(0);
+    store.close();
+  });
+
+  it('returns an empty list when the release-group album is unavailable', async () => {
+    const { app, store } = makeApp();
+    store.register('release-group', 'MPREb_missing');
+    const rgMbid = toMbid('release-group', 'MPREb_missing');
+
+    const response = await app(
+      new Request(`http://localhost/ws/2/release?release-group=${rgMbid}&fmt=json`),
+    );
+
+    expect(((await response.json()) as { count: number }).count).toBe(0);
+    store.close();
+  });
+
+  it('rejects a browse without a linked entity', async () => {
+    const { store, source } = makeApp();
+    const context = { source, store, format: 'json' as const };
+
+    await expect(releaseService.browse?.(context, new URLSearchParams())).rejects.toThrow();
     store.close();
   });
 });

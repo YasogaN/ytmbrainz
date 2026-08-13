@@ -6,6 +6,7 @@ import type { EntityService, HandlerContext } from '@/ws/app';
 import { badRequest } from '@/ws/errors';
 import { RECORDING_INC, validateInc } from '@/ws/inc';
 import { parseInc } from '@/ws/params';
+import { resolveLinked } from '@/ws/services/linked';
 
 export const recordingService: EntityService = {
   async search(context: HandlerContext, searchParams: URLSearchParams): Promise<Entity[]> {
@@ -24,6 +25,44 @@ export const recordingService: EntityService = {
       recordings.push(mapRecording(track, Math.max(100 - index, 0)));
     }
     return recordings.filter(translated.filter);
+  },
+
+  async browse(context: HandlerContext, searchParams: URLSearchParams): Promise<Entity[]> {
+    const artistMbid = searchParams.get('artist');
+    if (artistMbid !== null) {
+      const channelId = resolveLinked(context.store, artistMbid, 'artist');
+      if (channelId === null) {
+        return [];
+      }
+      const artist = await context.source.getArtist(channelId);
+      if (artist === null) {
+        return [];
+      }
+      const recordings: Entity[] = [];
+      for (const track of artist.topTracks) {
+        registerRecording(context.store, track);
+        recordings.push(mapRecording(track));
+      }
+      return recordings;
+    }
+    const releaseMbid = searchParams.get('release');
+    if (releaseMbid !== null) {
+      const albumId = resolveLinked(context.store, releaseMbid, 'release');
+      if (albumId === null) {
+        return [];
+      }
+      const album = await context.source.getAlbum(albumId);
+      if (album === null) {
+        return [];
+      }
+      const recordings: Entity[] = [];
+      for (const track of album.tracks) {
+        registerRecording(context.store, track);
+        recordings.push(mapRecording(track));
+      }
+      return recordings;
+    }
+    throw badRequest('Missing browse parameter.');
   },
 
   async lookup(
