@@ -116,6 +116,44 @@ describe('artist lookup', () => {
     store.close();
   });
 
+  it('returns 404 when the artist page is unavailable', async () => {
+    const { app, store } = makeApp();
+    store.register('artist', 'UC-other');
+    const mbid = toMbid('artist', 'UC-other');
+
+    const response = await app(new Request(`http://localhost/ws/2/artist/${mbid}?fmt=json`));
+
+    expect(response.status).toBe(404);
+    store.close();
+  });
+
+  it('registers the releases and recordings it serves with inc', async () => {
+    const { app, store } = makeApp();
+    store.register('artist', 'UC-artist');
+    const mbid = toMbid('artist', 'UC-artist');
+
+    const response = await app(
+      new Request(
+        `http://localhost/ws/2/artist/${mbid}?inc=recordings+releases+release-groups&fmt=json`,
+      ),
+    );
+    expect(response.status).toBe(200);
+    const body = (await response.json()) as {
+      releases: Array<{ id: string }>;
+      recordings: Array<{ id: string }>;
+    };
+
+    expect(store.lookup(body.releases[0]?.id ?? '')).toEqual({
+      entity: 'release',
+      sourceId: 'MPREb_1',
+    });
+    expect(store.lookup(body.recordings[0]?.id ?? '')).toEqual({
+      entity: 'recording',
+      sourceId: 'video-1',
+    });
+    store.close();
+  });
+
   it('returns 404 when the MBID maps to a different entity', async () => {
     const { app, store } = makeApp();
     store.register('recording', 'video-1');

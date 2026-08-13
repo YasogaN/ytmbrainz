@@ -169,6 +169,20 @@ describe('release-group lookup', () => {
     store.close();
   });
 
+  it('returns 404 when the album is unavailable', async () => {
+    const { app, store } = makeApp();
+    store.register('release-group', 'MPREb_missing');
+
+    const response = await app(
+      new Request(
+        `http://localhost/ws/2/release-group/${toMbid('release-group', 'MPREb_missing')}?fmt=json`,
+      ),
+    );
+
+    expect(response.status).toBe(404);
+    store.close();
+  });
+
   it('rejects unsupported inc values', async () => {
     const { app, store } = makeApp();
     store.register('release-group', 'MPREb_1');

@@ -63,6 +63,10 @@ export const releaseGroupService: EntityService = {
       return null;
     }
     const album = await context.source.getAlbum(key.sourceId);
-    return album === null ? null : mapReleaseGroup(album);
+    if (album === null) {
+      return null;
+    }
+    registerReleaseGroup(context.store, album);
+    return mapReleaseGroup(album);
   },
 };

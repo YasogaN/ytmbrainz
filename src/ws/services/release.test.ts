@@ -180,6 +180,37 @@ describe('release lookup', () => {
     store.close();
   });
 
+  it('returns 404 when the album is unavailable', async () => {
+    const { app, store } = makeApp();
+    store.register('release', 'MPREb_missing');
+
+    const response = await app(
+      new Request(`http://localhost/ws/2/release/${toMbid('release', 'MPREb_missing')}?fmt=json`),
+    );
+
+    expect(response.status).toBe(404);
+    store.close();
+  });
+
+  it('registers the recordings it serves with inc=recordings', async () => {
+    const { app, store } = makeApp();
+    store.register('release', 'MPREb_1');
+
+    const response = await app(
+      new Request(
+        `http://localhost/ws/2/release/${toMbid('release', 'MPREb_1')}?inc=recordings&fmt=json`,
+      ),
+    );
+    expect(response.status).toBe(200);
+    const body = (await response.json()) as { recordings: Array<{ id: string }> };
+
+    expect(store.lookup(body.recordings[0]?.id ?? '')).toEqual({
+      entity: 'recording',
+      sourceId: 'video-1',
+    });
+    store.close();
+  });
+
   it('returns 404 for an unknown MBID', async () => {
     const { app, store } = makeApp();
     const response = await app(

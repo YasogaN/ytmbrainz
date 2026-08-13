@@ -1,8 +1,8 @@
 import type { Entity, Url } from '@/core/entities';
 import { isValidMbid } from '@/core/mbid';
-import { mapArtist } from '@/mappers/artist';
-import { mapRecording } from '@/mappers/recording';
-import { mapRelease } from '@/mappers/release';
+import { mapArtist, registerArtist } from '@/mappers/artist';
+import { mapRecording, registerRecording } from '@/mappers/recording';
+import { mapRelease, registerRelease } from '@/mappers/release';
 import { extractUrl, mapUrl, parseResource, type ResourceTarget, registerUrl } from '@/mappers/url';
 import type { EntityService, HandlerContext } from '@/ws/app';
 import { badRequest } from '@/ws/errors';
@@ -15,14 +15,26 @@ async function fetchTarget(
 ): Promise<Entity | null> {
   if (target.entity === 'recording') {
     const track = await context.source.getSong(target.sourceId);
-    return track === null ? null : mapRecording(track);
+    if (track === null) {
+      return null;
+    }
+    registerRecording(context.store, track);
+    return mapRecording(track);
   }
   if (target.entity === 'artist') {
     const artist = await context.source.getArtist(target.sourceId);
-    return artist === null ? null : mapArtist(artist);
+    if (artist === null) {
+      return null;
+    }
+    registerArtist(context.store, artist);
+    return mapArtist(artist);
   }
   const album = await context.source.getAlbum(target.sourceId);
-  return album === null ? null : mapRelease(album);
+  if (album === null) {
+    return null;
+  }
+  registerRelease(context.store, album);
+  return mapRelease(album);
 }
 
 async function resolveUrl(context: HandlerContext, resource: string): Promise<Url | null> {

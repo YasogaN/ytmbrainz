@@ -79,6 +79,7 @@ export function registerRelease(
 ): void {
   if (album.id !== null) {
     store.register('release', album.id);
+    store.register('release-group', album.id);
   }
   for (const artist of album.artists) {
     if (artist.id !== null) {

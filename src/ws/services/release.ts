@@ -1,4 +1,5 @@
 import type { Entity } from '@/core/entities';
+import { registerRecording } from '@/mappers/recording';
 import { mapRelease, mapReleaseRef, registerRelease } from '@/mappers/release';
 import { parseQuery } from '@/query/parser';
 import { translateRelease } from '@/query/translate';
@@ -73,8 +74,12 @@ export const releaseService: EntityService = {
       return null;
     }
     const album = await context.source.getAlbum(key.sourceId);
-    return album === null
-      ? null
-      : mapRelease(album, { includeRecordings: inc.includes('recordings') });
+    if (album === null) {
+      return null;
+    }
+    for (const track of album.tracks) {
+      registerRecording(context.store, track);
+    }
+    return mapRelease(album, { includeRecordings: inc.includes('recordings') });
   },
 };

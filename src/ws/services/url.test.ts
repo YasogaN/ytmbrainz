@@ -108,6 +108,44 @@ describe('url lookup by resource', () => {
     store.close();
   });
 
+  it('returns 404 when the target artist cannot be resolved', async () => {
+    const { app, store } = makeApp();
+    const response = await app(
+      new Request(
+        'http://localhost/ws/2/url?resource=https%3A%2F%2Fwww.youtube.com%2Fchannel%2FUC-missing',
+      ),
+    );
+
+    expect(response.status).toBe(404);
+    store.close();
+  });
+
+  it('registers the recording it serves in a relation', async () => {
+    const { app, store } = makeApp();
+    const response = await app(
+      new Request('http://localhost/ws/2/url?resource=https%3A%2F%2Fyoutu.be%2Fvideo-1&fmt=json'),
+    );
+
+    const body = (await response.json()) as { relations: Array<{ target: string }> };
+    expect(store.lookup(body.relations[0]?.target ?? '')).toEqual({
+      entity: 'recording',
+      sourceId: 'video-1',
+    });
+    store.close();
+  });
+
+  it('returns 404 when the target album cannot be resolved', async () => {
+    const { app, store } = makeApp();
+    const response = await app(
+      new Request(
+        'http://localhost/ws/2/url?resource=https%3A%2F%2Fmusic.youtube.com%2Falbum%2FMPREb_missing',
+      ),
+    );
+
+    expect(response.status).toBe(404);
+    store.close();
+  });
+
   it('returns 404 when the target entity cannot be resolved', async () => {
     const { app, store } = makeApp();
     const response = await app(

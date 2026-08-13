@@ -1,5 +1,7 @@
 import type { Entity } from '@/core/entities';
 import { mapArtist, mapArtistPage, registerArtist } from '@/mappers/artist';
+import { registerRecording } from '@/mappers/recording';
+import { registerRelease } from '@/mappers/release';
 import { parseQuery } from '@/query/parser';
 import { translateArtist } from '@/query/translate';
 import type { EntityService, HandlerContext } from '@/ws/app';
@@ -41,12 +43,19 @@ export const artistService: EntityService = {
       return null;
     }
     const page = await context.source.getArtist(key.sourceId);
-    return page === null
-      ? null
-      : mapArtistPage(page, {
-          includeRecordings: inc.includes('recordings'),
-          includeReleases: inc.includes('releases'),
-          includeReleaseGroups: inc.includes('release-groups'),
-        });
+    if (page === null) {
+      return null;
+    }
+    for (const album of [...page.albums, ...page.singles]) {
+      registerRelease(context.store, album);
+    }
+    for (const track of page.topTracks) {
+      registerRecording(context.store, track);
+    }
+    return mapArtistPage(page, {
+      includeRecordings: inc.includes('recordings'),
+      includeReleases: inc.includes('releases'),
+      includeReleaseGroups: inc.includes('release-groups'),
+    });
   },
 };
