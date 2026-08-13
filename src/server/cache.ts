@@ -4,19 +4,38 @@ import type { YtAlbum, YtAlbumRef, YtArtist, YtArtistPage, YtTrack } from '@/ada
 export class TtlCache {
   private readonly entries = new Map<string, { expiresAt: number; promise: Promise<unknown> }>();
 
-  constructor(private readonly ttlMs: number) {}
+  constructor(
+    private readonly ttlMs: number,
+    private readonly maxEntries = 1000,
+  ) {}
+
+  get size(): number {
+    return this.entries.size;
+  }
 
   get<T>(key: string, load: () => Promise<T>): Promise<T> {
+    const now = Date.now();
     const existing = this.entries.get(key);
-    if (existing !== undefined && existing.expiresAt > Date.now()) {
+    if (existing !== undefined && existing.expiresAt > now) {
       return existing.promise as Promise<T>;
     }
+    if (this.entries.size >= this.maxEntries) {
+      this.prune(now);
+    }
     const promise = load();
-    this.entries.set(key, { expiresAt: Date.now() + this.ttlMs, promise });
+    this.entries.set(key, { expiresAt: now + this.ttlMs, promise });
     promise.catch(() => {
       this.entries.delete(key);
     });
     return promise;
+  }
+
+  private prune(now: number): void {
+    for (const [key, entry] of this.entries) {
+      if (entry.expiresAt <= now) {
+        this.entries.delete(key);
+      }
+    }
   }
 
   clear(): void {

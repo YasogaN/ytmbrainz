@@ -35,6 +35,29 @@ describe('HttpRateLimiter', () => {
     expect(limiter.allow('ip-1')).toBe(true);
   });
 
+  it('prunes expired windows when the map is at capacity', () => {
+    const limiter = new HttpRateLimiter(5, 0, 3);
+
+    limiter.allow('ip-1');
+    limiter.allow('ip-2');
+    limiter.allow('ip-3');
+    expect(limiter.size).toBe(3);
+
+    expect(limiter.allow('ip-4')).toBe(true);
+    expect(limiter.size).toBe(1);
+  });
+
+  it('keeps fresh windows when pruning at capacity', () => {
+    const limiter = new HttpRateLimiter(5, 60_000, 2);
+
+    limiter.allow('ip-1');
+    limiter.allow('ip-2');
+    expect(limiter.size).toBe(2);
+
+    expect(limiter.allow('ip-3')).toBe(true);
+    expect(limiter.size).toBe(3);
+  });
+
   it('clears all windows on reset', () => {
     const limiter = new HttpRateLimiter(1);
 

@@ -72,6 +72,19 @@ describe('TtlCache', () => {
     expect(calls).toHaveLength(2);
   });
 
+  it('prunes expired entries when the cache is at capacity', async () => {
+    const cache = new TtlCache(0, 3);
+    const wrapped = new CachingSource(source([]), cache);
+
+    await wrapped.searchSongs('a');
+    await wrapped.searchSongs('b');
+    await wrapped.searchSongs('c');
+    expect(cache.size).toBe(3);
+
+    await wrapped.searchSongs('d');
+    expect(cache.size).toBe(1);
+  });
+
   it('clears all entries', async () => {
     const calls: number[] = [];
     const cache = new TtlCache(60_000);
