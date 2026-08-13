@@ -33,9 +33,39 @@ reliable track durations for niche and indie music — can be pointed at it.
 
 Configuration is read from the environment:
 
-| Variable          | Default                | Description              |
-| ----------------- | ---------------------- | ------------------------ |
-| `YTMB_HOST`       | `127.0.0.1`            | Bind address             |
-| `YTMB_PORT`       | `3000`                 | HTTP port                |
-| `YTMB_CACHE_TTL`  | `3600`                 | Upstream response TTL    |
-| `YTMB_DB_PATH`    | `./data/ytmbrainz.db`  | MBID store (SQLite)      |
+| Variable                 | Default                | Description                     |
+| ------------------------ | ---------------------- | ------------------------------- |
+| `YTMB_HOST`              | `127.0.0.1`            | Bind address                    |
+| `YTMB_PORT`              | `3000`                 | HTTP port                       |
+| `YTMB_CACHE_TTL`         | `3600`                 | Upstream response TTL (seconds) |
+| `YTMB_YT_RATE_LIMIT_MS`  | `1000`                 | Min interval between YT calls   |
+| `YTMB_DB_PATH`           | `./data/ytmbrainz.db`  | MBID store (SQLite)             |
+
+## Docker
+
+```sh
+docker build -t ytmbrainz .
+docker run --rm -p 3000:3000 -v ytmbrainz-data:/app/data ytmbrainz
+```
+
+or with compose:
+
+```sh
+docker compose up -d
+```
+
+The image builds with the full preflight gate (lint, typecheck, tests,
+100% coverage) and runs the server on `0.0.0.0:3000`.
+
+## GitHub Actions
+
+- `ci.yml` — lint, typecheck, and the coverage-gated test suite on every
+  push/PR to `main`.
+- `live.yml` — runs the live tests against YouTube on a schedule or manually.
+- `docker.yml` — builds and pushes the image to GHCR on `main` and `v*` tags.
+
+## API
+
+See [docs/routes.md](docs/routes.md) for the implemented MusicBrainz
+`/ws/2` routes with XML and JSON examples.
+

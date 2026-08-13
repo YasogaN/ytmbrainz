@@ -1,0 +1,18 @@
+services:
+  ytmbrainz:
+    build: .
+    image: ghcr.io/${GITHUB_REPOSITORY:-ytmbrainz/ytmbrainz}:latest
+    ports:
+      - '3000:3000'
+    environment:
+      YTMB_HOST: 0.0.0.0
+      YTMB_PORT: 3000
+      YTMB_CACHE_TTL: '3600'
+      YTMB_YT_RATE_LIMIT_MS: '1000'
+      YTMB_DB_PATH: /app/data/ytmbrainz.db
+    volumes:
+      - ytmbrainz-data:/app/data
+    restart: unless-stopped
+
+volumes:
+  ytmbrainz-data:

@@ -19,7 +19,7 @@
     "test:watch": "bun test --watch",
     "test:live": "RUN_LIVE=1 bun test tests/live",
     "preflight": "bun run check && bun run typecheck && bun run test:coverage",
-    "postinstall": "lefthook install --force"
+    "postinstall": "if [ \"$LEFTHOOK\" = \"0\" ]; then echo 'skipping lefthook install'; else lefthook install --force; fi"
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.6",
