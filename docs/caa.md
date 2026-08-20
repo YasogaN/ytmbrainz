@@ -123,8 +123,8 @@ over the container network however you already expose container services.
 ### Prerequisites
 
 - The client that fetches covers must be pointed at ytmbrainz for `/ws/2` so
-  every MBID it sends to CAA is a ytmbrainz MBID (Koito example:
-  `KOITO_MUSICBRAINZ_URL=http://ytmbrainz:3000`).
+  every MBID it sends to CAA is a ytmbrainz MBID (i.e. its MusicBrainz URL must
+  point at ytmbrainz).
 - `podman` ≥ 5.2 for the quadlet `NetworkAlias=` support (Docker and plain
   podman support network aliases natively).
 
@@ -159,11 +159,13 @@ Environment=SSL_CERT_FILE=/etc/caa-ca/ca-bundle.crt
 Description=CAA proxy shared network
 
 [Network]
-Subnet=10.89.1.0/24
+# Name the network explicitly; podman auto-assigns the subnet.
+NetworkName=caa
 ```
 
-Join ytmbrainz to the network with a drop-in so the checked-in quadlet stays
-self-contained. `~/.config/containers/systemd/ytmbrainz.container.d/caa-proxy.conf`:
+Join ytmbrainz to the network by adding a single line to your copied
+`ytmbrainz.container` (a container can join multiple networks — one `Network=`
+line per network):
 
 ```ini
 [Container]
@@ -198,15 +200,13 @@ The client container joins the same network and trusts the bundle:
 Network=caa.network
 Volume=/path/to/ca-bundle.crt:/etc/caa-ca/ca-bundle.crt:ro,Z
 Environment=SSL_CERT_FILE=/etc/caa-ca/ca-bundle.crt
-# Koito example: make its MBIDs resolve against ytmbrainz:
-Environment=KOITO_MUSICBRAINZ_URL=http://ytmbrainz:3000
 ```
 
 Apply:
 
 ```sh
 systemctl --user daemon-reload
-systemctl --user restart ytmbrainz        # picks up caa.network via the drop-in
+systemctl --user restart ytmbrainz        # joins caa.network
 systemctl --user enable --now caa-mitm
 systemctl --user restart <client>
 ```
@@ -262,10 +262,9 @@ volumes:
   mitm-ca:
 ```
 
-In the client's compose file, join the same external `caa` network and trust the
-bundle (Koito example: also set `KOITO_MUSICBRAINZ_URL: http://ytmbrainz:3000`).
-No `ports:` are defined anywhere — every service is reached by name on the
-`caa` network.
+In the client's compose file, join the same external `caa` network, trust the
+bundle, and point its MusicBrainz URL at ytmbrainz. No `ports:` are defined
+anywhere — every service is reached by name on the `caa` network.
 
 ### Caveats
 

@@ -20,11 +20,9 @@ Environment=YTMB_HTTP_RATE_LIMIT=10
 # Pull new images automatically via `systemctl --user enable --now podman-auto-update.timer`
 AutoUpdate=registry
 # Optional: MITM coverartarchive.org into ytmbrainz's CAA routes for clients
-# that hardcode the real Cover Art Archive. See docs/caa.md. Requires a user
-# drop-in (~/.config/containers/systemd/ytmbrainz.container.d/caa-proxy.conf)
-# joining a shared network, plus a `caa-mitm` sidecar container:
-#   [Container]
-#   Network=caa.network
+# that hardcode the real Cover Art Archive. See docs/caa.md. Requires the
+# caa.network quadlet and a `caa-mitm` sidecar container; then uncomment:
+# Network=caa.network
 
 [Service]
 Restart=on-failure
