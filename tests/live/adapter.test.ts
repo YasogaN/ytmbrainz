@@ -32,6 +32,8 @@ describe.skipIf(!runLive)('InnerTubeSource (live)', () => {
     const album = await source.getAlbum(albumId ?? '');
     expect(album?.name).toBeTruthy();
     expect(album?.tracks.length).toBeGreaterThan(0);
+    expect(album?.artwork.length).toBeGreaterThan(0);
+    expect(album?.artwork[0]?.url).toContain('http');
   }, 60_000);
 
   it('resolves an artist page', async () => {
