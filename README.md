@@ -264,6 +264,43 @@ This project was built with substantial AI assistance. DeepSeek V4 Flash
 most of the planning, coding, documentation, and research. I was in the loop
 throughout, directing and reviewing the work.
 
+## Legal Disclaimer
+
+This project is an independent, unofficial project and is not affiliated with,
+endorsed by, or associated with Google LLC, YouTube, YouTube Music, MusicBrainz,
+the MetaBrainz Foundation, the Cover Art Archive, the Internet Archive, or any
+of their products or services. It is not an official MusicBrainz server, an
+official YouTube or YouTube Music product, or a Google product.
+
+All product and company names used in this project — including YouTube, YouTube
+Music, Google, MusicBrainz, and Cover Art Archive — are trademarks or
+registered trademarks of their respective holders. Use of them does not imply
+any affiliation with or endorsement by them.
+
+### Purpose of the Project
+
+This project was created solely for personal use.
+
+### Non-Commercial Nature
+
+This project is non-commercial and is not intended for any form of profit
+generation or business use.
+
+### Intellectual Property and Fair Use
+
+We acknowledge and respect the intellectual property rights of Google, YouTube,
+MusicBrainz, the MetaBrainz Foundation, and all other third parties. ytmbrainz
+implements the public MusicBrainz `/ws/2` API contract and reads metadata
+exposed by YouTube Music; no proprietary APIs, data, or materials belonging to
+these parties are distributed by this project. Any content referenced,
+redirected to, or linked from this project remains the property of its
+respective owners.
+
+### Contact and Legal Concerns
+
+If you have any concerns or questions regarding the legality of this project,
+or any specific legal queries or issues, please seek professional legal advice.
+
 ## License
 
 [MIT](LICENSE) © 2026 Yasoga Nanayakkarawasam
