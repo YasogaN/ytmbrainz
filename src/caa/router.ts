@@ -15,18 +15,13 @@ function parseEntity(segment: string | undefined): CaaEntityType | null {
   return segment === 'release' || segment === 'release-group' ? segment : null;
 }
 
-function parseSize(raw: string): CaaSize | null {
-  return raw === '250' || raw === '500' || raw === '1200'
-    ? (Number.parseInt(raw, 10) as CaaSize)
-    : null;
-}
-
 function parseImageSpec(spec: string): { id: string; size: CaaSize | null } | null {
   const withoutExtension = spec.replace(JPG_SUFFIX, '');
   const sized = SIZE_SUFFIX.exec(withoutExtension);
   if (sized !== null) {
     const id = withoutExtension.slice(0, sized.index);
-    return id === '' ? null : { id, size: parseSize(sized[1] ?? '') };
+    const size = Number.parseInt(sized[1] ?? '', 10) as CaaSize;
+    return id === '' ? null : { id, size };
   }
   return withoutExtension === '' ? null : { id: withoutExtension, size: null };
 }
@@ -57,11 +52,21 @@ export function parseCoverArtPath(pathname: string): CaaRoute | null {
   }
   const sizedFront = /^front-(250|500|1200)$/.exec(spec);
   if (sizedFront !== null) {
-    return { entity, mbid, variant: 'front', size: parseSize(sizedFront[1] ?? '') };
+    return {
+      entity,
+      mbid,
+      variant: 'front',
+      size: Number.parseInt(sizedFront[1] ?? '', 10) as CaaSize,
+    };
   }
   const sizedBack = /^back-(250|500|1200)$/.exec(spec);
   if (sizedBack !== null) {
-    return { entity, mbid, variant: 'back', size: parseSize(sizedBack[1] ?? '') };
+    return {
+      entity,
+      mbid,
+      variant: 'back',
+      size: Number.parseInt(sizedBack[1] ?? '', 10) as CaaSize,
+    };
   }
   if (spec.startsWith('front-') || spec.startsWith('back-')) {
     return null;
