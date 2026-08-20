@@ -2,8 +2,11 @@ services:
   ytmbrainz:
     build: .
     image: ghcr.io/YasogaN/ytmbrainz:latest
-    ports:
-      - '3000:3000'
+    # No host ports are published by default; reach the service over the
+    # container network (e.g. another container, a reverse proxy, or a tunnel
+    # on the same network). Uncomment to expose /ws/2 on the host:
+    # ports:
+    #   - '3000:3000'
     environment:
       YTMB_HOST: 0.0.0.0
       YTMB_PORT: 3000
@@ -14,5 +17,25 @@ services:
       - ytmbrainz-data:/app/data
     restart: unless-stopped
 
+  # Optional: MITM coverartarchive.org into ytmbrainz's CAA routes for clients
+  # that hardcode the real Cover Art Archive. See docs/caa.md for the full
+  # setup (shared external network + alias wiring).
+  # caa-mitm:
+  #   image: mitmproxy/mitmproxy
+  #   networks:
+  #     caa:
+  #       aliases: [coverartarchive.org]
+  #   command: ["mitmdump", "--mode", "reverse:http://ytmbrainz:3000@443", "--set", "keep_host_header=true"]
+  #   volumes:
+  #     - mitm-ca:/home/mitmproxy/.mitmproxy
+  #   restart: unless-stopped
+
 volumes:
   ytmbrainz-data:
+
+# networks:
+#   caa:
+#     external: true
+
+# volumes:
+#   mitm-ca:
