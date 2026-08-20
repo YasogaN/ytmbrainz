@@ -246,3 +246,9 @@ or browse first serves the entity.
 Lookups accept `inc=` with the values valid for that entity (e.g. `releases`,
 `artist-credits`, `url-rels`). Values outside the per-entity allowlist return
 400.
+
+## What's missing
+
+See [compatibility.md](compatibility.md) for the full list of MusicBrainz
+endpoints and fields that are **not** implemented — most simply don't exist in
+YouTube Music's data.
