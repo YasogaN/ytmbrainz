@@ -150,6 +150,11 @@ Volume=/path/to/ca-bundle.crt:/etc/caa-ca/ca-bundle.crt:ro,Z
 Environment=SSL_CERT_FILE=/etc/caa-ca/ca-bundle.crt
 ```
 
+> Note: if the client still rejects the certificate, its runtime may not honor
+> `SSL_CERT_FILE` — bind the bundle over the base image's CA path instead
+> (e.g. `/etc/ssl/certs/ca-certificates.crt` on Debian-based images,
+> `/etc/ssl/cert.pem` on Alpine).
+
 ### 2. Variant A — podman quadlet (recommended)
 
 `~/.config/containers/systemd/caa.network`:
