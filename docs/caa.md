@@ -89,3 +89,78 @@ as everything else.
 - Requests are subject to the per-IP HTTP rate limit like everything else.
 - The real `coverartarchive.org` is a different dataset: ytmbrainz MBIDs will
   never resolve there. Clients must be pointed at ytmbrainz's own CAA routes.
+
+## Proxying the real Cover Art Archive for scrobblers
+
+Some scrobblers and services can be pointed at ytmbrainz for `/ws/2` but still
+hardcode `https://coverartarchive.org` for cover art (Koito is one — it has no
+CAA URL override, only a disable flag). Such a service fetches covers with the
+MBIDs it got from ytmbrainz, and because those are ytmbrainz MBIDs, the real CAA
+answers 404.
+
+The fix is to MITM `coverartarchive.org` itself: run mitmproxy as a TLS reverse
+proxy on the host so requests to `coverartarchive.org` are served by ytmbrainz's
+CAA routes instead. This works because the MBIDs in those requests are ytmbrainz
+MBIDs, and the request shapes match 1:1. A Koito-style client issues `HEAD`
+(and later `GET`) to `/release/{mbid}/front` and `/release-group/{mbid}/front` —
+exactly the routes ytmbrainz serves, which return a 307 to the Google-hosted
+thumbnail. The client's HTTP library follows the redirect, so it sees a 200 and
+accepts the cover.
+
+### Setup
+
+1. Make sure the scrobbler's MusicBrainz URL points at ytmbrainz
+   (`KOITO_MUSICBRAINZ_URL=http://<host>:3000` for Koito), so every MBID it
+   hands to CAA is a ytmbrainz MBID.
+
+2. Run mitmproxy in reverse mode on the host, forwarding to ytmbrainz
+   (the ytmbrainz quadlet already publishes port 3000 to the host):
+
+   ```sh
+   sudo mitmdump -p 443 --mode reverse:http://127.0.0.1:3000 --set keep_host_header=true
+   ```
+
+   mitmproxy terminates TLS and presents its own certificate for
+   `coverartarchive.org`; `keep_host_header=true` preserves the `Host` header so
+   ytmbrainz builds the right URLs. Redirects are passed through unchanged.
+
+3. Build a CA bundle the scrobbler will trust — both parts are required: the
+   mitmproxy CA (for the forged `coverartarchive.org` certificate) and the real
+   roots (for the `lh3.googleusercontent.com` thumbnail the client is redirected
+   to):
+
+   ```sh
+   cat /etc/ssl/certs/ca-certificates.crt ~/.mitmproxy/mitmproxy-ca-cert.pem > ca-bundle.crt
+   ```
+
+4. Point the scrobbler container's `coverartarchive.org` traffic at the host and
+   trust the bundle:
+
+   - **Docker**: in the scrobbler's `docker-compose.yml`
+     ```yaml
+     extra_hosts:
+       - 'coverartarchive.org:host-gateway'
+     environment:
+       - SSL_CERT_FILE=/etc/caa-ca/ca-bundle.crt
+     volumes:
+       - ./ca-bundle.crt:/etc/caa-ca/ca-bundle.crt:ro
+     ```
+   - **Rootless podman quadlet**: in the scrobbler's `.container` file
+     ```ini
+     AddHost=coverartarchive.org:host-gateway
+     Environment=SSL_CERT_FILE=/etc/caa-ca/ca-bundle.crt
+     Volume=/path/to/ca-bundle.crt:/etc/caa-ca/ca-bundle.crt:ro,Z
+     ```
+
+   Only `coverartarchive.org` is redirected; everything else (including the
+   Google thumbnail) still resolves normally.
+
+### Caveats
+
+- The image bytes still come from Google directly — the 307 redirect bypasses
+  the proxy, so the scrobbler needs normal internet access to
+  `lh3.googleusercontent.com`.
+- Import bursts can trip ytmbrainz's per-IP HTTP rate limit (default 10 req/s);
+  raise `YTMB_HTTP_RATE_LIMIT` or set it to `0` if covers start 503ing.
+- Only ytmbrainz MBIDs resolve this way; the real MusicBrainz dataset never
+  will.
