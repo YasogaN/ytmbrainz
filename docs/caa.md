@@ -90,76 +90,188 @@ as everything else.
 - The real `coverartarchive.org` is a different dataset: ytmbrainz MBIDs will
   never resolve there. Clients must be pointed at ytmbrainz's own CAA routes.
 
-## Proxying the real Cover Art Archive for scrobblers
+## Proxying the real Cover Art Archive
 
-Some scrobblers and services can be pointed at ytmbrainz for `/ws/2` but still
-hardcode `https://coverartarchive.org` for cover art (Koito is one — it has no
-CAA URL override, only a disable flag). Such a service fetches covers with the
-MBIDs it got from ytmbrainz, and because those are ytmbrainz MBIDs, the real CAA
-answers 404.
+Some services that can be pointed at ytmbrainz for `/ws/2` still hardcode
+`https://coverartarchive.org` for cover art (Koito is one — it has no CAA URL
+override, only a disable flag). Such a service fetches covers with the MBIDs it
+got from ytmbrainz, and because those are ytmbrainz MBIDs, the real CAA answers
+404.
 
-The fix is to MITM `coverartarchive.org` itself: run mitmproxy as a TLS reverse
-proxy on the host so requests to `coverartarchive.org` are served by ytmbrainz's
-CAA routes instead. This works because the MBIDs in those requests are ytmbrainz
-MBIDs, and the request shapes match 1:1. A Koito-style client issues `HEAD`
-(and later `GET`) to `/release/{mbid}/front` and `/release-group/{mbid}/front` —
-exactly the routes ytmbrainz serves, which return a 307 to the Google-hosted
-thumbnail. The client's HTTP library follows the redirect, so it sees a 200 and
-accepts the cover.
+The fix is to MITM `coverartarchive.org` itself: run mitmproxy as a sidecar
+container that owns the `coverartarchive.org` DNS alias on a shared network,
+terminates TLS with its own CA, and reverse-proxies to ytmbrainz's CAA routes.
+This works because the MBIDs in those requests are ytmbrainz MBIDs and the
+request shapes match 1:1 — a client issues `HEAD` (and later `GET`) to
+`/release/{mbid}/front` and `/release-group/{mbid}/front`, exactly the routes
+ytmbrainz serves. Those return a 307 to the Google-hosted thumbnail; the
+client's HTTP library follows the redirect, sees a 200, and accepts the cover.
 
-### Setup
+```
+caa (shared user-defined network, DNS on)
+├─ ytmbrainz     http://ytmbrainz:3000        (no alias)
+├─ caa-mitm      alias: coverartarchive.org
+│     mitmdump --mode reverse:http://ytmbrainz:3000@443 --set keep_host_header=true
+│     Volume: mitm-ca:/home/mitmproxy/.mitmproxy    (CA persists)
+└─ any client    resolves coverartarchive.org → caa-mitm
+```
 
-1. Make sure the scrobbler's MusicBrainz URL points at ytmbrainz
-   (`KOITO_MUSICBRAINZ_URL=http://<host>:3000` for Koito), so every MBID it
-   hands to CAA is a ytmbrainz MBID.
+No ports are published: `caa-mitm` listens on 443 inside its own container and
+is reachable only by other containers on the `caa` network. Expose the services
+over the container network however you already expose container services.
 
-2. Run mitmproxy in reverse mode on the host, forwarding to ytmbrainz
-   (the ytmbrainz quadlet already publishes port 3000 to the host):
+### Prerequisites
 
-   ```sh
-   sudo mitmdump -p 443 --mode reverse:http://127.0.0.1:3000 --set keep_host_header=true
-   ```
+- The client that fetches covers must be pointed at ytmbrainz for `/ws/2` so
+  every MBID it sends to CAA is a ytmbrainz MBID (Koito example:
+  `KOITO_MUSICBRAINZ_URL=http://ytmbrainz:3000`).
+- `podman` ≥ 5.2 for the quadlet `NetworkAlias=` support (Docker and plain
+  podman support network aliases natively).
 
-   mitmproxy terminates TLS and presents its own certificate for
-   `coverartarchive.org`; `keep_host_header=true` preserves the `Host` header so
-   ytmbrainz builds the right URLs. Redirects are passed through unchanged.
+### 1. Trust the sidecar's certificate (one time)
 
-3. Build a CA bundle the scrobbler will trust — both parts are required: the
-   mitmproxy CA (for the forged `coverartarchive.org` certificate) and the real
-   roots (for the `lh3.googleusercontent.com` thumbnail the client is redirected
-   to):
+mitmproxy generates its CA on first start, stored in the `mitm-ca` volume.
+Extract it and build a trust bundle. Both parts are required: the mitmproxy CA
+(for the forged `coverartarchive.org` certificate) and the real system roots
+(for the `lh3.googleusercontent.com` thumbnail the client is redirected to):
 
-   ```sh
-   cat /etc/ssl/certs/ca-certificates.crt ~/.mitmproxy/mitmproxy-ca-cert.pem > ca-bundle.crt
-   ```
+```sh
+# after the sidecar has started once (see variants below):
+podman cp caa-mitm:/home/mitmproxy/.mitmproxy/mitmproxy-ca-cert.pem .
+cat /etc/ssl/certs/ca-certificates.crt mitmproxy-ca-cert.pem > ca-bundle.crt
+```
 
-4. Point the scrobbler container's `coverartarchive.org` traffic at the host and
-   trust the bundle:
+Then mount `ca-bundle.crt` into the client container and point it at the file
+(docker: `volumes: - ./ca-bundle.crt:/etc/caa-ca/ca-bundle.crt:ro` and
+`environment: - SSL_CERT_FILE=/etc/caa-ca/ca-bundle.crt`):
 
-   - **Docker**: in the scrobbler's `docker-compose.yml`
-     ```yaml
-     extra_hosts:
-       - 'coverartarchive.org:host-gateway'
-     environment:
-       - SSL_CERT_FILE=/etc/caa-ca/ca-bundle.crt
-     volumes:
-       - ./ca-bundle.crt:/etc/caa-ca/ca-bundle.crt:ro
-     ```
-   - **Rootless podman quadlet**: in the scrobbler's `.container` file
-     ```ini
-     AddHost=coverartarchive.org:host-gateway
-     Environment=SSL_CERT_FILE=/etc/caa-ca/ca-bundle.crt
-     Volume=/path/to/ca-bundle.crt:/etc/caa-ca/ca-bundle.crt:ro,Z
-     ```
+```ini
+Volume=/path/to/ca-bundle.crt:/etc/caa-ca/ca-bundle.crt:ro,Z
+Environment=SSL_CERT_FILE=/etc/caa-ca/ca-bundle.crt
+```
 
-   Only `coverartarchive.org` is redirected; everything else (including the
-   Google thumbnail) still resolves normally.
+### 2. Variant A — podman quadlet (recommended)
+
+`~/.config/containers/systemd/caa.network`:
+
+```ini
+[Unit]
+Description=CAA proxy shared network
+
+[Network]
+Subnet=10.89.1.0/24
+```
+
+Join ytmbrainz to the network with a drop-in so the checked-in quadlet stays
+self-contained. `~/.config/containers/systemd/ytmbrainz.container.d/caa-proxy.conf`:
+
+```ini
+[Container]
+Network=caa.network
+```
+
+`~/.config/containers/systemd/caa-mitm.container`:
+
+```ini
+[Unit]
+Description=CAA MITM sidecar (coverartarchive.org -> ytmbrainz)
+
+[Container]
+Image=docker.io/mitmproxy/mitmproxy
+Network=caa.network
+NetworkAlias=coverartarchive.org
+Exec=mitmdump --mode reverse:http://ytmbrainz:3000@443 --set keep_host_header=true
+Volume=mitm-ca:/home/mitmproxy/.mitmproxy
+AutoUpdate=registry
+
+[Service]
+Restart=on-failure
+
+[Install]
+WantedBy=default.target
+```
+
+The client container joins the same network and trusts the bundle:
+
+```ini
+[Container]
+Network=caa.network
+Volume=/path/to/ca-bundle.crt:/etc/caa-ca/ca-bundle.crt:ro,Z
+Environment=SSL_CERT_FILE=/etc/caa-ca/ca-bundle.crt
+# Koito example: make its MBIDs resolve against ytmbrainz:
+Environment=KOITO_MUSICBRAINZ_URL=http://ytmbrainz:3000
+```
+
+Apply:
+
+```sh
+systemctl --user daemon-reload
+systemctl --user restart ytmbrainz        # picks up caa.network via the drop-in
+systemctl --user enable --now caa-mitm
+systemctl --user restart <client>
+```
+
+Custom podman networks enable DNS by default — verify with
+`podman network inspect -f '{{.DNSEnabled}}' caa`.
+
+### 3. Variant B — plain podman
+
+```sh
+podman network create caa
+podman run -d --name ytmbrainz --network caa ghcr.io/YasogaN/ytmbrainz:latest
+podman run -d --name caa-mitm --network caa --network-alias coverartarchive.org \
+  -v mitm-ca:/home/mitmproxy/.mitmproxy \
+  docker.io/mitmproxy/mitmproxy \
+  mitmdump --mode reverse:http://ytmbrainz:3000@443 --set keep_host_header=true
+podman run -d --name <client> --network caa \
+  -v /path/to/ca-bundle.crt:/etc/caa-ca/ca-bundle.crt:ro,Z \
+  -e SSL_CERT_FILE=/etc/caa-ca/ca-bundle.crt \
+  <client-image>
+```
+
+### 4. Variant C — Docker Compose
+
+```sh
+docker network create caa
+```
+
+In the ytmbrainz compose file:
+
+```yaml
+services:
+  ytmbrainz:
+    image: ghcr.io/YasogaN/ytmbrainz:latest
+    networks: [caa]
+    # ...your environment and volumes...
+
+  caa-mitm:
+    image: mitmproxy/mitmproxy
+    networks:
+      caa:
+        aliases: [coverartarchive.org]
+    command: ["mitmdump", "--mode", "reverse:http://ytmbrainz:3000@443", "--set", "keep_host_header=true"]
+    volumes:
+      - mitm-ca:/home/mitmproxy/.mitmproxy
+    restart: unless-stopped
+
+networks:
+  caa:
+    external: true
+
+volumes:
+  mitm-ca:
+```
+
+In the client's compose file, join the same external `caa` network and trust the
+bundle (Koito example: also set `KOITO_MUSICBRAINZ_URL: http://ytmbrainz:3000`).
+No `ports:` are defined anywhere — every service is reached by name on the
+`caa` network.
 
 ### Caveats
 
 - The image bytes still come from Google directly — the 307 redirect bypasses
-  the proxy, so the scrobbler needs normal internet access to
-  `lh3.googleusercontent.com`.
+  the proxy, so the client needs normal internet access to
+  `lh3.googleusercontent.com` (hence the real roots in the trust bundle).
 - Import bursts can trip ytmbrainz's per-IP HTTP rate limit (default 10 req/s);
   raise `YTMB_HTTP_RATE_LIMIT` or set it to `0` if covers start 503ing.
 - Only ytmbrainz MBIDs resolve this way; the real MusicBrainz dataset never
