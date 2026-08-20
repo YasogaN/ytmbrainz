@@ -210,6 +210,10 @@ describe('InnerTubeSource', () => {
         year: '1998',
         author: { name: 'Boards of Canada', channel_id: 'UC-artist' },
         description: text('An album'),
+        thumbnails: [
+          { url: 'https://img.example.com/a=w544-h544', width: 544, height: 544 },
+          { url: 'https://img.example.com/a=w120-h120', width: 120, height: 120 },
+        ],
       },
       contents: [songItem()],
     });
@@ -223,6 +227,10 @@ describe('InnerTubeSource', () => {
       artists: [{ id: 'UC-artist', name: 'Boards of Canada' }],
       year: '1998',
       description: 'An album',
+      artwork: [
+        { url: 'https://img.example.com/a=w120-h120', width: 120, height: 120 },
+        { url: 'https://img.example.com/a=w544-h544', width: 544, height: 544 },
+      ],
       tracks: [
         {
           id: 'video-1',
@@ -250,6 +258,9 @@ describe('InnerTubeSource', () => {
           { text: 'Some Artist', endpoint: { payload: { browseId: 'UC-some' } } },
           { text: '2021' },
         ]),
+        thumbnail: {
+          contents: [{ url: 'https://img.example.com/b=w300-h300', width: 300, height: 300 }],
+        },
       },
       contents: [],
     });
@@ -263,8 +274,48 @@ describe('InnerTubeSource', () => {
       artists: [{ id: 'UC-some', name: 'Some Artist' }],
       year: '2021',
       description: null,
+      artwork: [{ url: 'https://img.example.com/b=w300-h300', width: 300, height: 300 }],
       tracks: [],
     });
+  });
+
+  it('falls back to the album background artwork', async () => {
+    music.getAlbum.mockReturnValue({
+      header: { type: 'MusicResponsiveHeader', title: text('No Header Art'), subtitle: text('') },
+      background: {
+        contents: [{ url: 'https://img.example.com/bg=w544-h544', width: 544, height: 544 }],
+      },
+      contents: [],
+    });
+    const source = new InnerTubeSource();
+
+    const album = await source.getAlbum('MPREb_4');
+
+    expect(album?.artwork).toEqual([
+      { url: 'https://img.example.com/bg=w544-h544', width: 544, height: 544 },
+    ]);
+  });
+
+  it('drops artwork entries without a url', async () => {
+    music.getAlbum.mockReturnValue({
+      header: {
+        type: 'MusicDetailHeader',
+        title: text('Broken Art'),
+        subtitle: text(''),
+        thumbnails: [
+          { url: '', width: 0, height: 0 },
+          { url: 'https://img.example.com/c=w544-h544', width: 544, height: 544 },
+        ],
+      },
+      contents: [],
+    });
+    const source = new InnerTubeSource();
+
+    const album = await source.getAlbum('MPREb_5');
+
+    expect(album?.artwork).toEqual([
+      { url: 'https://img.example.com/c=w544-h544', width: 544, height: 544 },
+    ]);
   });
 
   it('returns null when getArtist reports a missing entity', async () => {

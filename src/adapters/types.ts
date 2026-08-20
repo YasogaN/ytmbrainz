@@ -24,6 +24,12 @@ export interface YtTrack {
   year: string | null;
 }
 
+export interface YtImage {
+  url: string;
+  width: number;
+  height: number;
+}
+
 export interface YtAlbum {
   id: string | null;
   name: string;
@@ -31,6 +37,7 @@ export interface YtAlbum {
   year: string | null;
   description: string | null;
   tracks: YtTrack[];
+  artwork: YtImage[];
 }
 
 export interface YtArtistPage {

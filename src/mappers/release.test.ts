@@ -13,6 +13,7 @@ const albumRef: YtAlbumRef = {
 const album: YtAlbum = {
   ...albumRef,
   description: null,
+  artwork: [],
   tracks: [
     {
       id: 'video-1',

@@ -10,6 +10,7 @@ const album = {
   artists: [{ id: 'UC-artist', name: 'Boards of Canada' }],
   year: '1998',
   description: 'The debut album.',
+  artwork: [],
   tracks: [
     {
       id: 'video-1',

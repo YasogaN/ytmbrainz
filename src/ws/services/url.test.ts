@@ -21,6 +21,7 @@ const makeApp = () => {
       year: '1998',
       description: null,
       tracks: [],
+      artwork: [],
     })
     .seedArtist({
       id: 'UC-artist',

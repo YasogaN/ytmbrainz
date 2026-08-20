@@ -1,7 +1,14 @@
 import { type Clients, ClientType, Innertube, type YTMusic, type YTNodes } from 'youtubei.js';
 import { toNotFoundOrThrow } from '@/adapters/errors';
 import type { YouTubeSource } from '@/adapters/source';
-import type { YtAlbum, YtAlbumRef, YtArtist, YtArtistPage, YtTrack } from '@/adapters/types';
+import type {
+  YtAlbum,
+  YtAlbumRef,
+  YtArtist,
+  YtArtistPage,
+  YtImage,
+  YtTrack,
+} from '@/adapters/types';
 
 export interface InnerTubeOptions {
   cookie?: string;
@@ -133,6 +140,19 @@ function albumHeaderInfo(
     year: runYear(header?.subtitle.runs),
     description: null,
   };
+}
+
+function artworkOf(
+  album: YTMusic.Album,
+  header: YTNodes.MusicDetailHeader | YTNodes.MusicResponsiveHeader | undefined,
+): YtImage[] {
+  const thumbnails = isDetailHeader(header)
+    ? header.thumbnails
+    : (header?.thumbnail?.contents ?? album.background?.contents ?? []);
+  return thumbnails
+    .map(thumbnail => ({ url: thumbnail.url, width: thumbnail.width, height: thumbnail.height }))
+    .filter(image => image.url !== '')
+    .sort((a, b) => a.width - b.width);
 }
 
 function topTracksFromShelf(shelf: YTNodes.MusicShelf): YtTrack[] {
@@ -278,6 +298,7 @@ export class InnerTubeSource implements YouTubeSource {
       year: info.year,
       description: info.description,
       tracks,
+      artwork: artworkOf(album, album.header),
     };
   }
 

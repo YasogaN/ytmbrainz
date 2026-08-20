@@ -23,6 +23,11 @@ const mhtrtcAlbum = {
   ...mhtrtc,
   description: 'The debut album.',
   tracks: [roygbiv],
+  artwork: [
+    { url: 'https://lh3.googleusercontent.com/mhtrtc=w120-h120', width: 120, height: 120 },
+    { url: 'https://lh3.googleusercontent.com/mhtrtc=w544-h544', width: 544, height: 544 },
+    { url: 'https://lh3.googleusercontent.com/mhtrtc=w1200-h1200', width: 1200, height: 1200 },
+  ],
 };
 
 const geogaddi = {
@@ -32,6 +37,7 @@ const geogaddi = {
   year: '2002',
   description: 'The second album.',
   tracks: [],
+  artwork: [],
 };
 
 describe('FakeSource', () => {
