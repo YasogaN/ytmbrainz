@@ -1,0 +1,25 @@
+[Unit]
+Description=ytmbrainz - MusicBrainz-compatible metadata server backed by YouTube Music
+
+[Container]
+# Published as ghcr.io/YasogaN/ytmbrainz on main and v* tags.
+Image=ghcr.io/YasogaN/ytmbrainz:latest
+PublishPort=3000:3000
+# Persistent MBID store. The image already runs as an unprivileged user and
+# defaults YTMB_DB_PATH to /app/data/ytmbrainz.db.
+Volume=ytmbrainz-data:/app/data
+# Matches the image defaults; adjust freely.
+Environment=YTMB_HOST=0.0.0.0
+Environment=YTMB_PORT=3000
+Environment=YTMB_CACHE_TTL=3600
+Environment=YTMB_YT_RATE_LIMIT_MS=1000
+Environment=YTMB_HTTP_RATE_LIMIT=10
+# Pull new images automatically via `systemctl --user enable --now podman-auto-update.timer`
+AutoUpdate=registry
+
+[Service]
+Restart=on-failure
+
+[Install]
+# Rootless: enable with `systemctl --user enable --now ytmbrainz`
+WantedBy=default.target

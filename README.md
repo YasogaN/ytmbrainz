@@ -211,6 +211,29 @@ The image is built in three stages:
 Images are published to GHCR (`ghcr.io/YasogaN/ytmbrainz`) on every push to `main`
 and on `v*` tags.
 
+### Podman (rootless quadlet)
+
+A ready-to-use rootless quadlet is provided in
+[deploy/quadlet/ytmbrainz.container](deploy/quadlet/ytmbrainz.container)
+(requires Podman ≥ 4.4):
+
+```sh
+mkdir -p ~/.config/containers/systemd
+cp deploy/quadlet/ytmbrainz.container ~/.config/containers/systemd/
+systemctl --user daemon-reload
+systemctl --user enable --now ytmbrainz
+```
+
+Enable automatic image updates:
+
+```sh
+systemctl --user enable --now podman-auto-update.timer
+```
+
+The service runs as your user, keeps the MBID database in a named volume
+(`ytmbrainz-data`), restarts on failure, and pulls fresh `ghcr.io/YasogaN/ytmbrainz:latest`
+images on the update timer.
+
 ## CI/CD
 
 | Workflow    | Trigger                       | What it does                                  |
