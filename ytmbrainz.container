@@ -2,8 +2,8 @@
 Description=ytmbrainz - MusicBrainz-compatible metadata server backed by YouTube Music
 
 [Container]
-# Published as ghcr.io/YasogaN/ytmbrainz on main and v* tags.
-Image=ghcr.io/YasogaN/ytmbrainz:latest
+# Published as ghcr.io/yasogan/ytmbrainz on v* tags.
+Image=ghcr.io/yasogan/ytmbrainz:latest
 # No host ports are published by default; reach the service over the container
 # network (e.g. another container, a reverse proxy, or a tunnel on the same
 # network). Uncomment to expose /ws/2 on the host:

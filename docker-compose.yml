@@ -1,7 +1,7 @@
 services:
   ytmbrainz:
     build: .
-    image: ghcr.io/YasogaN/ytmbrainz:latest
+    image: ghcr.io/yasogan/ytmbrainz:latest
     # No host ports are published by default; reach the service over the
     # container network (e.g. another container, a reverse proxy, or a tunnel
     # on the same network). Uncomment to expose /ws/2 on the host:

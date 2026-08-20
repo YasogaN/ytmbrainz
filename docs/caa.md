@@ -223,7 +223,7 @@ Custom podman networks enable DNS by default — verify with
 
 ```sh
 podman network create caa
-podman run -d --name ytmbrainz --network caa ghcr.io/YasogaN/ytmbrainz:latest
+podman run -d --name ytmbrainz --network caa ghcr.io/yasogan/ytmbrainz:latest
 podman run -d --name caa-mitm --network caa --network-alias coverartarchive.org \
   -v mitm-ca:/home/mitmproxy/.mitmproxy \
   docker.io/mitmproxy/mitmproxy \
@@ -245,7 +245,7 @@ In the ytmbrainz compose file:
 ```yaml
 services:
   ytmbrainz:
-    image: ghcr.io/YasogaN/ytmbrainz:latest
+    image: ghcr.io/yasogan/ytmbrainz:latest
     networks: [caa]
     # ...your environment and volumes...
 

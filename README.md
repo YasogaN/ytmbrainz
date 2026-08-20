@@ -214,8 +214,7 @@ The image is built in three stages:
 3. **runtime** — ships only the binary, runs as an unprivileged `ytmbrainz` user,
    with a `/health` healthcheck
 
-Images are published to GHCR (`ghcr.io/YasogaN/ytmbrainz`) on every push to `main`
-and on `v*` tags.
+Images are published to GHCR (`ghcr.io/yasogan/ytmbrainz`) on `v*` tags.
 
 ### Podman (rootless quadlet)
 
@@ -236,7 +235,7 @@ systemctl --user enable --now podman-auto-update.timer
 ```
 
 The service runs as your user, keeps the MBID database in a named volume
-(`ytmbrainz-data`), restarts on failure, and pulls fresh `ghcr.io/YasogaN/ytmbrainz:latest`
+(`ytmbrainz-data`), restarts on failure, and pulls fresh `ghcr.io/yasogan/ytmbrainz:latest`
 images on the update timer.
 
 ## CI/CD
@@ -245,7 +244,7 @@ images on the update timer.
 | ----------- | ----------------------------- | --------------------------------------------- |
 | `ci.yml`    | push/PR to `main`             | lint, typecheck, coverage-gated tests         |
 | `live.yml`  | daily cron + manual dispatch  | live tests against the real YouTube API       |
-| `docker.yml`| push to `main` + `v*` tags    | builds and pushes the image to GHCR           |
+| `docker.yml`| `v*` tags + manual dispatch | builds and pushes the image to GHCR           |
 
 ## Development
 
