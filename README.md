@@ -257,6 +257,13 @@ images on the update timer.
 - **Tests**: unit tests live next to their source files (`src/**/*.test.ts`); live tests
   that hit the real YouTube API live in `tests/live` and only run with `RUN_LIVE=1`.
 
+## AI Disclosure
+
+This project was developed with substantial assistance from AI models. DeepSeek
+V4 Flash (DeepSeek-V4-Flash-0731) and V4 Pro (DeepSeek-V4-Pro-0813) were used
+for planning, coding, documentation, and research. The maintainer was in the
+loop throughout, but the models performed most of the work.
+
 ## License
 
 [MIT](LICENSE) © 2026 Yasoga Nanayakkarawasam
