@@ -177,7 +177,9 @@ curl http://127.0.0.1:3000/release/<mbid>                # JSON image index
 ```
 
 Front, sized (`-250`/`-500`/`-1200`), and per-image variants are supported under
-both `/release/<mbid>` and `/release-group/<mbid>`. See [docs/caa.md](docs/caa.md).
+both `/release/<mbid>` and `/release-group/<mbid>`. See [docs/caa.md](docs/caa.md)
+for the route reference and for how to MITM the real `coverartarchive.org` into
+these routes for clients that hardcode it.
 
 See [docs/routes.md](docs/routes.md) for the full route reference with XML and JSON
 examples, and [docs/architecture.md](docs/architecture.md) for how it works under the hood.
@@ -191,8 +193,12 @@ examples, and [docs/architecture.md](docs/architecture.md) for how it works unde
 
 ```sh
 docker build -t ytmbrainz .
-docker run --rm -p 3000:3000 -v ytmbrainz-data:/app/data ytmbrainz
+docker run --rm -v ytmbrainz-data:/app/data ytmbrainz
 ```
+
+No ports are published by default — reach the service over the container
+network, or add `-p 3000:3000` (or uncomment `ports:` in `docker-compose.yml`)
+to expose it locally.
 
 or with compose:
 
