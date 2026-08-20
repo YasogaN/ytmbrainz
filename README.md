@@ -214,12 +214,11 @@ and on `v*` tags.
 ### Podman (rootless quadlet)
 
 A ready-to-use rootless quadlet is provided in
-[deploy/quadlet/ytmbrainz.container](deploy/quadlet/ytmbrainz.container)
-(requires Podman ≥ 4.4):
+[ytmbrainz.container](ytmbrainz.container) (requires Podman ≥ 4.4):
 
 ```sh
 mkdir -p ~/.config/containers/systemd
-cp deploy/quadlet/ytmbrainz.container ~/.config/containers/systemd/
+cp ytmbrainz.container ~/.config/containers/systemd/
 systemctl --user daemon-reload
 systemctl --user enable --now ytmbrainz
 ```
