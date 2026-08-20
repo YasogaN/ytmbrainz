@@ -259,10 +259,10 @@ images on the update timer.
 
 ## AI Disclosure
 
-This project was developed with substantial assistance from AI models. DeepSeek
-V4 Flash (DeepSeek-V4-Flash-0731) and V4 Pro (DeepSeek-V4-Pro-0813) were used
-for planning, coding, documentation, and research. The maintainer was in the
-loop throughout, but the models performed most of the work.
+This project was built with substantial AI assistance. DeepSeek V4 Flash
+(DeepSeek-V4-Flash-0731) and DeepSeek V4 Pro (DeepSeek-V4-Pro-0813) handled
+most of the planning, coding, documentation, and research. I was in the loop
+throughout, directing and reviewing the work.
 
 ## License
 
