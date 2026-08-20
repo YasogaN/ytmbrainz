@@ -18,8 +18,9 @@ look complete.
 
 Also implemented: XML (MMD-2.0) and JSON output with `fmt=` / `Accept` negotiation,
 MusicBrainz-shaped errors (400/404/405/503), `limit`/`offset` paging, `inc=`
-subqueries, Lucene search syntax (see [docs/routes.md](routes.md)), and a
-`/health` endpoint.
+subqueries, Lucene search syntax (see [docs/routes.md](routes.md)),
+[Cover Art Archive compatible routes](caa.md) for release and release-group
+covers, and a `/health` endpoint.
 
 ## Accepted but empty
 
@@ -71,21 +72,24 @@ These MusicBrainz endpoints do not exist here and return 404:
 
 MusicBrainz serves covers through a **separate** service, the
 [Cover Art Archive](https://coverartarchive.org), not through `/ws/2` — so no
-images ever appear in ytmbrainz's responses either. CAA endpoints are not
-implemented here.
+images ever appear in ytmbrainz's `/ws/2` responses either.
+
+ytmbrainz implements CAA-compatible routes itself, backed by the album art
+YouTube Music returns: `/release/{mbid}/front`, `/release/{mbid}/{id}`,
+`/release/{mbid}/{id}-{250|500|1200}`, the JSON image index, and the
+`/release-group/{mbid}` equivalents. See [docs/caa.md](caa.md) for the full
+reference.
 
 Two things to know:
 
-- **The art exists.** YouTube Music does return images for everything: track
-  art (`basic_info.thumbnail` on track info), album art (`Album.background`,
-  `MusicDetailHeader.thumbnails`), artist avatars, and thumbnails on search
-  results. ytmbrainz currently discards all of it, but a CAA-style endpoint
-  (e.g. `/release/<mbid>/front-250`) could be built on top of it.
-- **Real CAA lookups will never resolve.** CAA is keyed by MusicBrainz MBIDs,
-  and ytmbrainz MBIDs are UUID v5 values derived from YouTube IDs — they will
-  never match IDs in the real MusicBrainz/CAA databases. So for
-  ytmbrainz-only entities, covers can only come from ytmbrainz itself (via the
-  hypothetical endpoint above), not from musicbrainz.org's CAA.
+- **Only front covers.** YouTube Music returns front cover art (and artist
+  avatars, track art, and search thumbnails). It has no back, booklet, disc, or
+  tray images, so those CAA routes return 404.
+- **Real CAA lookups will never resolve.** The real `coverartarchive.org` is
+  keyed by MusicBrainz MBIDs, and ytmbrainz MBIDs are UUID v5 values derived
+  from YouTube IDs — they will never match IDs in the real MusicBrainz/CAA
+  databases. Clients must be pointed at ytmbrainz's own CAA routes (or a
+  reverse proxy in front of them) to get covers for ytmbrainz-only entities.
 
 ## Behavioral differences from musicbrainz.org
 

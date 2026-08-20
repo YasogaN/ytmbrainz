@@ -252,3 +252,8 @@ Lookups accept `inc=` with the values valid for that entity (e.g. `releases`,
 See [compatibility.md](compatibility.md) for the full list of MusicBrainz
 endpoints and fields that are **not** implemented — most simply don't exist in
 YouTube Music's data.
+
+## Cover art
+
+Release and release-group covers are served through Cover Art Archive
+compatible routes — see [caa.md](caa.md).

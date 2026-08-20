@@ -41,6 +41,8 @@ that gap: point your client's MusicBrainz server at it and the metadata shows up
   get the linked entity
 - `inc=` subqueries (artist discographies, release track lists, and more) with
   per-entity validation
+- Cover Art Archive-compatible cover routes (`/release/<mbid>/front` and friends)
+  served straight from YouTube Music's album art
 - Built to not get banned: upstream caching with request coalescing, serialized
   YouTube rate limiting, retries with exponential backoff, and per-IP HTTP rate limiting
 - Ships as a hardened Docker image: compiled single binary, non-root user, healthcheck
@@ -164,12 +166,25 @@ The following MusicBrainz `/ws/2` routes are implemented:
   `artist-credits`, `url-rels`, and more — validated per entity.
 - **Errors**: MusicBrainz-shaped errors with proper status codes (400, 404, 405, 503).
 
+### Cover art
+
+[Cover Art Archive](https://coverartarchive.org)-compatible routes are served for
+release and release-group covers, backed by YouTube Music's album art:
+
+```sh
+curl -I http://127.0.0.1:3000/release/<mbid>/front       # 307 -> YTM album art
+curl http://127.0.0.1:3000/release/<mbid>                # JSON image index
+```
+
+Front, sized (`-250`/`-500`/`-1200`), and per-image variants are supported under
+both `/release/<mbid>` and `/release-group/<mbid>`. See [docs/caa.md](docs/caa.md).
+
 See [docs/routes.md](docs/routes.md) for the full route reference with XML and JSON
 examples, and [docs/architecture.md](docs/architecture.md) for how it works under the hood.
 
 > **Not the whole MusicBrainz API.** YouTube Music has no labels, works, areas,
-> genres, aliases, tags, ISRCs, or cover art, so those endpoints and fields are not
-> (and can't be) implemented. See [docs/compatibility.md](docs/compatibility.md) for
+> genres, aliases, tags, or ISRCs, so those endpoints and fields are not (and
+> can't be) implemented. See [docs/compatibility.md](docs/compatibility.md) for
 > the full list of what is supported, what isn't, and why.
 
 ## Docker

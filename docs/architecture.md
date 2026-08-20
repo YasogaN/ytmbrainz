@@ -13,6 +13,7 @@ request
   │
   ▼
 src/ws/        routing, params, formats, errors, services (per-entity handlers)
+src/caa/       Cover Art Archive routes: index JSON + 307 artwork redirects
   │
   ▼
 src/query/     Lucene query parsing + translation to upstream calls / local filters
@@ -34,6 +35,7 @@ YouTube Music (InnerTube)
 | --------------- | ------------------------- | ------------------------------------------------ |
 | `src/core`      | `entities.ts`, `mbid.ts`, `config.ts` | entity model, MBID generation + store, env config |
 | `src/ws`        | `app.ts`, `router.ts`, `params.ts`, `format.ts`, `errors.ts`, `inc.ts`, `services/*` | HTTP surface: routing, query params, formats, error shapes, per-entity handlers |
+| `src/caa`       | `router.ts`, `artwork.ts`, `handler.ts` | Cover Art Archive compatible cover routes backed by album art |
 | `src/query`     | `parser.ts`, `translate.ts` | Lucene tokenizer/parser, and translation of clauses into search text + local filters |
 | `src/mappers`   | `artist.ts`, `recording.ts`, `release.ts`, `releaseGroup.ts`, `url.ts`, `credit.ts`, `type.ts` | map normalized YouTube shapes to the entity model |
 | `src/adapters`  | `innertube.ts`, `source.ts`, `types.ts`, `errors.ts`, `fake.ts` | the `YouTubeSource` boundary, the InnerTube adapter, and a fake for tests |
