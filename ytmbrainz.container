@@ -4,7 +4,10 @@ Description=ytmbrainz - MusicBrainz-compatible metadata server backed by YouTube
 [Container]
 # Published as ghcr.io/YasogaN/ytmbrainz on main and v* tags.
 Image=ghcr.io/YasogaN/ytmbrainz:latest
-PublishPort=3000:3000
+# No host ports are published by default; reach the service over the container
+# network (e.g. another container, a reverse proxy, or a tunnel on the same
+# network). Uncomment to expose /ws/2 on the host:
+# PublishPort=3000:3000
 # Persistent MBID store. The image already runs as an unprivileged user and
 # defaults YTMB_DB_PATH to /app/data/ytmbrainz.db.
 Volume=ytmbrainz-data:/app/data
@@ -16,6 +19,12 @@ Environment=YTMB_YT_RATE_LIMIT_MS=1000
 Environment=YTMB_HTTP_RATE_LIMIT=10
 # Pull new images automatically via `systemctl --user enable --now podman-auto-update.timer`
 AutoUpdate=registry
+# Optional: MITM coverartarchive.org into ytmbrainz's CAA routes for clients
+# that hardcode the real Cover Art Archive. See docs/caa.md. Requires a user
+# drop-in (~/.config/containers/systemd/ytmbrainz.container.d/caa-proxy.conf)
+# joining a shared network, plus a `caa-mitm` sidecar container:
+#   [Container]
+#   Network=caa.network
 
 [Service]
 Restart=on-failure
