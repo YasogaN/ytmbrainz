@@ -10,7 +10,8 @@ export type EntityType =
   | 'release-group'
   | 'url'
   | 'track'
-  | 'medium';
+  | 'medium'
+  | 'image';
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -51,6 +52,7 @@ const ENTITY_NAMESPACES: Record<EntityType, string> = {
   url: uuidV5(ROOT_NAMESPACE, 'ytmbrainz.url'),
   track: uuidV5(ROOT_NAMESPACE, 'ytmbrainz.track'),
   medium: uuidV5(ROOT_NAMESPACE, 'ytmbrainz.medium'),
+  image: uuidV5(ROOT_NAMESPACE, 'ytmbrainz.image'),
 };
 
 export function toMbid(entity: EntityType, sourceId: string): string {

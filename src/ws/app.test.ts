@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'bun:test';
 import { FakeSource } from '@/adapters/fake';
 import type { Recording } from '@/core/entities';
-import { MbidStore } from '@/core/mbid';
+import { MbidStore, toMbid } from '@/core/mbid';
 import { createApp, type EntityService } from '@/ws/app';
 
 const recording: Recording = {
@@ -196,6 +196,34 @@ describe('createApp', () => {
     const response = await app(new Request('http://localhost/ws/2/recording?query=x&limit=abc'));
 
     expect(response.status).toBe(400);
+    store.close();
+  });
+
+  it('serves Cover Art Archive paths through the app', async () => {
+    const store = new MbidStore(':memory:');
+    store.register('release', 'MPREb_1');
+    const releaseMbid = toMbid('release', 'MPREb_1');
+    const source = new FakeSource().seedAlbum({
+      id: 'MPREb_1',
+      name: 'Music Has the Right to Children',
+      artists: [],
+      year: '1998',
+      description: null,
+      tracks: [],
+      artwork: [{ url: 'https://img.example.com/a=w544-h544', width: 544, height: 544 }],
+    });
+    const app = createApp({ source, store, services: {} });
+
+    const redirect = await app(new Request(`http://localhost/release/${releaseMbid}/front`));
+    expect(redirect.status).toBe(307);
+    expect(redirect.headers.get('location')).toBe('https://img.example.com/a=w544-h544');
+
+    const index = await app(new Request(`http://localhost/release/${releaseMbid}`));
+    expect(index.status).toBe(200);
+    expect(((await index.json()) as { images: unknown[] }).images).toHaveLength(1);
+
+    const wsStillWorks = await app(new Request('http://localhost/ws/2/recording?query=x&fmt=json'));
+    expect(wsStillWorks.status).toBe(501);
     store.close();
   });
 });

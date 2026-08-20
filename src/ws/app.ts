@@ -1,4 +1,5 @@
 import type { YouTubeSource } from '@/adapters/source';
+import { handleCoverArt } from '@/caa/handler';
 import type { Entity } from '@/core/entities';
 import { isValidMbid, type MbidStore } from '@/core/mbid';
 import { lookupToJson, searchToJson } from '@/serializers/json';
@@ -92,6 +93,10 @@ export function createApp(options: AppOptions): (request: Request) => Promise<Re
     const format = resolveFormat(url.searchParams.get('fmt'), request.headers.get('accept'));
     const context: RequestContext = { source, store, format, services };
     try {
+      const coverArt = await handleCoverArt(request, url, context);
+      if (coverArt !== null) {
+        return coverArt;
+      }
       return await handle(request, url, context);
     } catch (error) {
       if (error instanceof WsError) {
