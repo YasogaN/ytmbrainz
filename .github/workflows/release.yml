@@ -2,7 +2,7 @@ name: Release
 
 on:
   push:
-    tags: ['v[0-9]+.[0-9]+.[0-9]+']
+    tags: ["v[0-9]+.[0-9]+.[0-9]+"]
   workflow_dispatch:
 
 jobs:
@@ -34,7 +34,7 @@ jobs:
             ${{ steps.tag.outputs.image }}:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
-      - uses: softprops/action-gh-release@v2
+      - uses: softprops/action-gh-release@v3
         with:
           generate_release_notes: true
           name: ${{ github.ref_name }}
