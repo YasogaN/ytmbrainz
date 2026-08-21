@@ -5,7 +5,9 @@
 > duration data for the long tail of music that only exists on YouTube.
 
 [![CI](https://img.shields.io/github/actions/workflow/status/YasogaN/ytmbrainz/ci.yml?style=for-the-badge&label=CI)](https://github.com/YasogaN/ytmbrainz/actions/workflows/ci.yml)
-[![Docker](https://img.shields.io/github/actions/workflow/status/YasogaN/ytmbrainz/docker.yml?style=for-the-badge&label=Docker)](https://github.com/YasogaN/ytmbrainz/actions/workflows/docker.yml)
+[![Latest Release Date](https://img.shields.io/github/release-date/YasogaN/ytmbrainz?style=for-the-badge&label=Last%20Release)](https://github.com/YasogaN/ytmbrainz/releases)
+[![Latest Release](https://img.shields.io/github/v/release/YasogaN/ytmbrainz?style=for-the-badge&label=Release)](https://github.com/YasogaN/ytmbrainz/releases/latest)
+[![Last Commit](https://img.shields.io/github/last-commit/YasogaN/ytmbrainz?style=for-the-badge&label=Last%20Commit)](https://github.com/YasogaN/ytmbrainz/commits/main)
 [![Live tests](https://img.shields.io/github/actions/workflow/status/YasogaN/ytmbrainz/live.yml?style=for-the-badge&label=Live%20tests)](https://github.com/YasogaN/ytmbrainz/actions/workflows/live.yml)
 [![Stars](https://img.shields.io/github/stars/YasogaN/ytmbrainz?style=for-the-badge)](https://github.com/YasogaN/ytmbrainz)
 [![License](https://img.shields.io/badge/license-MIT-blue?style=for-the-badge)](LICENSE)
@@ -109,18 +111,18 @@ curl 'http://127.0.0.1:3000/ws/2/recording?query=recording:"Roygbiv" AND artist:
 
 ## Scripts
 
-| Command               | What it does                              |
-| --------------------- | ----------------------------------------- |
-| `bun run dev`         | Start the server in watch mode            |
-| `bun run start`       | Start the server                          |
-| `bun run check`       | Biome lint and format check               |
-| `bun run check:fix`   | Auto-fix lint and format issues           |
-| `bun run typecheck`   | Type-check with `tsc --noEmit`            |
-| `bun test`            | Run tests                                 |
-| `bun run test:coverage` | Run tests with 100% coverage gate       |
-| `bun run test:watch`  | Run tests in watch mode                   |
-| `bun run test:live`   | Run live tests against the real YouTube   |
-| `bun run preflight`   | Everything: check + typecheck + coverage  |
+| Command                 | What it does                             |
+| ----------------------- | ---------------------------------------- |
+| `bun run dev`           | Start the server in watch mode           |
+| `bun run start`         | Start the server                         |
+| `bun run check`         | Biome lint and format check              |
+| `bun run check:fix`     | Auto-fix lint and format issues          |
+| `bun run typecheck`     | Type-check with `tsc --noEmit`           |
+| `bun test`              | Run tests                                |
+| `bun run test:coverage` | Run tests with 100% coverage gate        |
+| `bun run test:watch`    | Run tests in watch mode                  |
+| `bun run test:live`     | Run live tests against the real YouTube  |
+| `bun run preflight`     | Everything: check + typecheck + coverage |
 
 The coverage gate is enforced in `bunfig.toml` — every file must hit 100% lines,
 functions, statements, and branches (`src/index.ts` and `tests/` are excluded).
@@ -129,19 +131,19 @@ functions, statements, and branches (`src/index.ts` and `tests/` are excluded).
 
 Configuration is read from the environment:
 
-| Variable                 | Default                | Description                          |
-| ------------------------ | ---------------------- | ------------------------------------ |
-| `YTMB_HOST`              | `127.0.0.1`            | Bind address                         |
-| `YTMB_PORT`              | `3000`                 | HTTP port                            |
-| `YTMB_CACHE_TTL`         | `3600`                 | Upstream response TTL (seconds)      |
-| `YTMB_YT_RATE_LIMIT_MS`  | `1000`                 | Min interval between YT calls        |
-| `YTMB_YT_RETRIES`        | `2`                    | Retries for transient YT failures    |
-| `YTMB_YT_BACKOFF_MS`     | `250`                  | Retry backoff base (exponential)     |
-| `YTMB_HTTP_RATE_LIMIT`   | `10`                   | Per-IP requests/sec (0 disables)     |
-| `YTMB_VISITOR_DATA`      | unset                  | Persistent InnerTube visitor data    |
-| `YTMB_COOKIE`            | unset                  | YouTube cookies (for authenticated)  |
-| `YTMB_PO_TOKEN`          | unset                  | Proof-of-origin token                |
-| `YTMB_DB_PATH`           | `./data/ytmbrainz.db`  | MBID store (SQLite)                  |
+| Variable                | Default               | Description                         |
+| ----------------------- | --------------------- | ----------------------------------- |
+| `YTMB_HOST`             | `127.0.0.1`           | Bind address                        |
+| `YTMB_PORT`             | `3000`                | HTTP port                           |
+| `YTMB_CACHE_TTL`        | `3600`                | Upstream response TTL (seconds)     |
+| `YTMB_YT_RATE_LIMIT_MS` | `1000`                | Min interval between YT calls       |
+| `YTMB_YT_RETRIES`       | `2`                   | Retries for transient YT failures   |
+| `YTMB_YT_BACKOFF_MS`    | `250`                 | Retry backoff base (exponential)    |
+| `YTMB_HTTP_RATE_LIMIT`  | `10`                  | Per-IP requests/sec (0 disables)    |
+| `YTMB_VISITOR_DATA`     | unset                 | Persistent InnerTube visitor data   |
+| `YTMB_COOKIE`           | unset                 | YouTube cookies (for authenticated) |
+| `YTMB_PO_TOKEN`         | unset                 | Proof-of-origin token               |
+| `YTMB_DB_PATH`          | `./data/ytmbrainz.db` | MBID store (SQLite)                 |
 
 YouTube may throw bot walls on unauthenticated requests. If that happens, provide
 `YTMB_VISITOR_DATA` (and optionally `YTMB_COOKIE` / `YTMB_PO_TOKEN`) from your own
@@ -151,13 +153,13 @@ logged-in YouTube session.
 
 The following MusicBrainz `/ws/2` routes are implemented:
 
-| Entity           | Search   | Lookup    | Browse |
-| ---------------- | -------- | --------- | ------ |
-| `recording`      | `query`  | `<mbid>`  | by `artist`, by `release` |
-| `artist`         | `query`  | `<mbid>`  | —      |
-| `release`        | `query`  | `<mbid>`  | by `artist`, by `release-group` |
-| `release-group`  | `query`  | `<mbid>`  | by `artist` |
-| `url`            | `query`  | `<mbid>` or `?resource=<url>` | — |
+| Entity          | Search  | Lookup                        | Browse                          |
+| --------------- | ------- | ----------------------------- | ------------------------------- |
+| `recording`     | `query` | `<mbid>`                      | by `artist`, by `release`       |
+| `artist`        | `query` | `<mbid>`                      | —                               |
+| `release`       | `query` | `<mbid>`                      | by `artist`, by `release-group` |
+| `release-group` | `query` | `<mbid>`                      | by `artist`                     |
+| `url`           | `query` | `<mbid>` or `?resource=<url>` | —                               |
 
 - **Formats**: XML is the default; add `fmt=json` or send `Accept: application/json`.
   `fmt=` takes precedence.
@@ -240,11 +242,11 @@ images on the update timer.
 
 ## CI/CD
 
-| Workflow    | Trigger                       | What it does                                  |
-| ----------- | ----------------------------- | --------------------------------------------- |
-| `ci.yml`    | push/PR to `main`             | lint, typecheck, coverage-gated tests         |
-| `live.yml`  | daily cron + manual dispatch  | live tests against the real YouTube API       |
-| `docker.yml`| `v*` tags + manual dispatch | builds and pushes the image to GHCR           |
+| Workflow      | Trigger                      | What it does                                                     |
+| ------------- | ---------------------------- | ---------------------------------------------------------------- |
+| `ci.yml`      | push/PR to `main`            | lint, typecheck, coverage-gated tests                            |
+| `live.yml`    | daily cron + manual dispatch | live tests against the real YouTube API                          |
+| `release.yml` | `v*` tags + manual dispatch  | builds and pushes the image to GHCR and creates a GitHub Release |
 
 ## Development
 
