@@ -1,0 +1,5 @@
+# Live tests against YouTube only exercise a subset of src/, so the 100%
+# coverageThreshold in bunfig.toml would always fail them. This config
+# disables coverage; the unit CI still gates on it via the root bunfig.
+[test]
+coverage = false
