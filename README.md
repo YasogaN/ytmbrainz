@@ -63,6 +63,8 @@ that gap: point your client's MusicBrainz server at it and the metadata shows up
 - [Biome](https://biomejs.dev) for linting and formatting
 - [youtube.js](https://www.ytjs.dev) (InnerTube) as the data source — YouTube Music
   client only, no main-YouTube endpoints
+- [bgutils-js](https://github.com/LuanRT/BgUtils) for minting Proof of Origin tokens
+  against BotGuard
 - `bun:sqlite` for the persistent, deterministic MBID store
 
 ## Quick start
@@ -122,6 +124,7 @@ curl 'http://127.0.0.1:3000/ws/2/recording?query=recording:"Roygbiv" AND artist:
 | `bun run test:coverage` | Run tests with 100% coverage gate        |
 | `bun run test:watch`    | Run tests in watch mode                  |
 | `bun run test:live`     | Run live tests against the real YouTube  |
+| `bun run gen:potoken`   | Mint a fresh PO token for YTMB_PO_TOKEN  |
 | `bun run preflight`     | Everything: check + typecheck + coverage |
 
 The coverage gate is enforced in `bunfig.toml` — every file must hit 100% lines,
@@ -148,6 +151,18 @@ Configuration is read from the environment:
 YouTube may throw bot walls on unauthenticated requests. If that happens, provide
 `YTMB_VISITOR_DATA` (and optionally `YTMB_COOKIE` / `YTMB_PO_TOKEN`) from your own
 logged-in YouTube session.
+
+To mint a fresh Proof of Origin token bound to your visitor data instead of
+harvesting one by hand, run:
+
+```sh
+YTMB_VISITOR_DATA=... bun run gen:potoken
+```
+
+and put the output in `YTMB_PO_TOKEN`. If `YTMB_PO_TOKEN` is left unset but
+`YTMB_VISITOR_DATA` is set, the server mints and auto-refreshes its own PO
+tokens at runtime (via [BgUtils](https://github.com/LuanRT/BgUtils)) so the
+session stays valid without manual rotation.
 
 ## API
 
