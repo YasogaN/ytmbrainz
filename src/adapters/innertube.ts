@@ -14,6 +14,12 @@ export interface InnerTubeOptions {
   cookie?: string;
   visitorData?: string;
   poToken?: string;
+  /** Minimum gap between continuation page fetches (ms). 0 disables pacing. */
+  pageIntervalMs?: number;
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise(resolve => setTimeout(resolve, ms));
 }
 
 interface RunLike {
@@ -177,12 +183,15 @@ const MAX_PAGES = 10;
 /**
  * Fetches search results across continuation pages until `limit` items are
  * collected (or the results are exhausted). The first page is the initial
- * search response; subsequent pages come from its continuation token.
+ * search response; subsequent pages come from its continuation token, each
+ * spaced by `pageIntervalMs` so a paged search does not burst requests at
+ * YouTube.
  */
 async function collectPages(
   search: YTMusic.Search,
   itemsOf: (page: SearchPage) => readonly unknown[] | undefined,
   limit: number,
+  pageIntervalMs: number,
 ): Promise<unknown[]> {
   const items: unknown[] = [];
   let page: SearchPage = search;
@@ -198,6 +207,9 @@ async function collectPages(
     }
     if (!page.has_continuation) {
       return items;
+    }
+    if (pageIntervalMs > 0) {
+      await sleep(pageIntervalMs);
     }
     page = await page.getContinuation();
   }
@@ -223,8 +235,10 @@ function shelfItemsOf(page: SearchPage, kind: 'song' | 'album' | 'artist') {
  */
 export class InnerTubeSource implements YouTubeSource {
   private readonly session: Promise<Innertube>;
+  private readonly pageIntervalMs: number;
 
   constructor(options: InnerTubeOptions = {}) {
+    this.pageIntervalMs = options.pageIntervalMs ?? 0;
     this.session = Innertube.create({
       client_type: ClientType.MUSIC,
       retrieve_player: false,
@@ -247,6 +261,7 @@ export class InnerTubeSource implements YouTubeSource {
       search,
       page => shelfItemsOf(page, 'song'),
       limit ?? Number.POSITIVE_INFINITY,
+      this.pageIntervalMs,
     );
     return pages
       .map(item => trackFromItem(item as TrackItemLike))
@@ -260,6 +275,7 @@ export class InnerTubeSource implements YouTubeSource {
       search,
       page => shelfItemsOf(page, 'album'),
       limit ?? Number.POSITIVE_INFINITY,
+      this.pageIntervalMs,
     );
     return pages
       .map(item => albumRefFromItem(item as AlbumRefItemLike))
@@ -273,6 +289,7 @@ export class InnerTubeSource implements YouTubeSource {
       search,
       page => shelfItemsOf(page, 'artist'),
       limit ?? Number.POSITIVE_INFINITY,
+      this.pageIntervalMs,
     );
     return pages
       .map(item => artistFromItem(item as { id?: string; name?: string }))

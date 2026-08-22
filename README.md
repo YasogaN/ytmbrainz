@@ -136,7 +136,7 @@ Configuration is read from the environment:
 | `YTMB_HOST`             | `127.0.0.1`           | Bind address                        |
 | `YTMB_PORT`             | `3000`                | HTTP port                           |
 | `YTMB_CACHE_TTL`        | `3600`                | Upstream response TTL (seconds)     |
-| `YTMB_YT_RATE_LIMIT_MS` | `1000`                | Min interval between YT calls       |
+| `YTMB_YT_RATE_LIMIT_MS` | `1000`                | Min interval between YT calls (incl. paged continuations) |
 | `YTMB_YT_RETRIES`       | `2`                   | Retries for transient YT failures   |
 | `YTMB_YT_BACKOFF_MS`    | `250`                 | Retry backoff base (exponential)    |
 | `YTMB_HTTP_RATE_LIMIT`  | `10`                  | Per-IP requests/sec (0 disables)    |

@@ -115,6 +115,29 @@ describe('InnerTubeSource', () => {
     expect(all.map(song => song.id)).toEqual(['v1', 'v2', 'v3', 'v4']);
   });
 
+  it('spaces continuation page fetches by the configured interval', async () => {
+    music.search.mockReturnValue({
+      songs: { contents: [songItem({ id: 'v1' })] },
+      has_continuation: true,
+      getContinuation: async () => ({
+        contents: { contents: [songItem({ id: 'v2' })] },
+        has_continuation: true,
+        getContinuation: async () => ({
+          contents: { contents: [songItem({ id: 'v3' })] },
+          has_continuation: false,
+        }),
+      }),
+    });
+    const source = new InnerTubeSource({ pageIntervalMs: 10 });
+
+    const start = Date.now();
+    const songs = await source.searchSongs('x', 3);
+    const elapsed = Date.now() - start;
+
+    expect(songs.map(song => song.id)).toEqual(['v1', 'v2', 'v3']);
+    expect(elapsed).toBeGreaterThanOrEqual(20);
+  });
+
   it('drops non-song and incomplete items from song results', async () => {
     music.search.mockReturnValue({
       songs: {

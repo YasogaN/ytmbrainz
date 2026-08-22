@@ -22,6 +22,7 @@ const source = new CachingSource(
         ...(config.visitorData !== null && { visitorData: config.visitorData }),
         ...(config.cookie !== null && { cookie: config.cookie }),
         ...(config.poToken !== null && { poToken: config.poToken }),
+        pageIntervalMs: config.ytMinIntervalMs,
       }),
       config.ytMinIntervalMs,
     ),

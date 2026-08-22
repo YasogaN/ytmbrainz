@@ -89,7 +89,9 @@ CachingSource(RetryingSource(RateLimitedSource(InnerTubeSource)))
 ```
 
 1. **`RateLimitedSource`** — serializes all upstream calls through one queue so
-   no two requests hit YouTube closer than `YTMB_YT_RATE_LIMIT_MS` apart.
+   no two requests hit YouTube closer than `YTMB_YT_RATE_LIMIT_MS` apart. The
+   InnerTube adapter paces continuation page fetches with the same interval, so
+   a paged search does not burst requests at YouTube.
 2. **`RetryingSource`** — retries transient failures (network errors, 429, 5xx)
    with exponential backoff. Bot walls and missing entities pass through
    immediately.
