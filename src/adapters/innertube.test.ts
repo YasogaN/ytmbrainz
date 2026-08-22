@@ -32,13 +32,16 @@ mock.module('youtubei.js', () => ({
     create: async (options: Record<string, unknown>) => {
       createCalls += 1;
       createOptions = options;
-      return { music };
+      return {
+        music,
+        session: { context: { client: { visitorData: 'mock-visitor' } } },
+      };
     },
   },
   ClientType: { MUSIC: 'WEB_REMIX' },
 }));
 
-import { InnerTubeSource } from '@/adapters/innertube';
+import { bootstrapVisitorData, InnerTubeSource } from '@/adapters/innertube';
 
 const text = (value: string, runs: Run[] = []) => ({ toString: () => value, runs });
 
@@ -72,34 +75,104 @@ describe('InnerTubeSource', () => {
     });
   });
 
-  it('recreates the session when the po token provider refreshes', async () => {
+  it('bootstraps a visitor data when none is configured', async () => {
     music.search.mockReturnValue({ songs: { contents: [] } });
-    let token: string | null = 'token-1';
+    let bootstrapCalls = 0;
     const source = new InnerTubeSource({
-      poTokenProvider: async () => token,
+      bootstrapVisitorData: async () => {
+        bootstrapCalls += 1;
+        return 'bootstrapped-visitor';
+      },
     });
 
     await source.searchSongs('a');
     await source.searchSongs('b');
-    expect(createCalls).toBe(1);
-    expect(createOptions?.po_token).toBe('token-1');
 
-    token = 'token-2';
-    await source.searchSongs('c');
-    expect(createCalls).toBe(2);
-    expect(createOptions?.po_token).toBe('token-2');
+    expect(bootstrapCalls).toBe(1);
+    expect(createOptions?.visitor_data).toBe('bootstrapped-visitor');
+    expect(createOptions?.po_token).toBeUndefined();
   });
 
-  it('drops the po token when the provider returns null', async () => {
+  it('uses the configured visitor data instead of bootstrapping', async () => {
     music.search.mockReturnValue({ songs: { contents: [] } });
+    let bootstrapCalls = 0;
     const source = new InnerTubeSource({
-      poTokenProvider: async () => null,
+      visitorData: 'configured-visitor',
+      bootstrapVisitorData: async () => {
+        bootstrapCalls += 1;
+        return 'bootstrapped-visitor';
+      },
     });
 
     await source.searchSongs('a');
 
+    expect(bootstrapCalls).toBe(0);
+    expect(createOptions?.visitor_data).toBe('configured-visitor');
+  });
+
+  it('mints a token bound to the visitor data through the minter', async () => {
+    music.search.mockReturnValue({ songs: { contents: [] } });
+    const bindings: string[] = [];
+    const source = new InnerTubeSource({
+      visitorData: 'visitor123',
+      minter: {
+        mint: async (binding: string) => {
+          bindings.push(binding);
+          return { token: 'minted-token', ttlSecs: 3600 };
+        },
+      },
+    });
+
+    await source.searchSongs('a');
+    await source.searchSongs('b');
+
+    expect(bindings).toEqual(['visitor123']);
     expect(createCalls).toBe(1);
-    expect(createOptions?.po_token).toBeUndefined();
+    expect(createOptions?.po_token).toBe('minted-token');
+    expect(createOptions?.visitor_data).toBe('visitor123');
+  });
+
+  it('recreates the session when the minted token refreshes', async () => {
+    music.search.mockReturnValue({ songs: { contents: [] } });
+    let mintCalls = 0;
+    const source = new InnerTubeSource({
+      visitorData: 'visitor123',
+      minter: {
+        // A zero TTL makes every getToken re-mint, simulating a refresh.
+        mint: async () => {
+          mintCalls += 1;
+          return { token: `token-${mintCalls}`, ttlSecs: 0 };
+        },
+      },
+    });
+
+    await source.searchSongs('a');
+    expect(createCalls).toBe(1);
+    expect(createOptions?.po_token).toBe('token-1');
+
+    await source.searchSongs('b');
+    expect(createCalls).toBe(2);
+    expect(createOptions?.po_token).toBe('token-2');
+  });
+
+  it('prefers a static po token over the minter', async () => {
+    music.search.mockReturnValue({ songs: { contents: [] } });
+    let mintCalls = 0;
+    const source = new InnerTubeSource({
+      visitorData: 'visitor123',
+      poToken: 'static-token',
+      minter: {
+        mint: async () => {
+          mintCalls += 1;
+          return { token: 'minted', ttlSecs: 3600 };
+        },
+      },
+    });
+
+    await source.searchSongs('a');
+
+    expect(mintCalls).toBe(0);
+    expect(createOptions?.po_token).toBe('static-token');
   });
 
   it('maps song search results', async () => {
@@ -508,5 +581,31 @@ describe('InnerTubeSource', () => {
     const song = await source.getSong('video-1');
 
     expect(song?.id).toBe('video-1');
+  });
+});
+
+describe('bootstrapVisitorData', () => {
+  const fakeSession = (visitorData?: string) => ({
+    session: { context: { client: { visitorData } } },
+  });
+
+  it('returns the visitor data from the probe session', async () => {
+    const visitorData = await bootstrapVisitorData(
+      async () => fakeSession('probe-visitor') as never,
+    );
+
+    expect(visitorData).toBe('probe-visitor');
+  });
+
+  it('throws when the probe session has no visitor data', async () => {
+    await expect(bootstrapVisitorData(async () => fakeSession() as never)).rejects.toThrow(
+      'visitor data',
+    );
+  });
+
+  it('throws when the visitor data is empty', async () => {
+    await expect(bootstrapVisitorData(async () => fakeSession('') as never)).rejects.toThrow(
+      'visitor data',
+    );
   });
 });

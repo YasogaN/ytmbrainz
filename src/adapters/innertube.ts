@@ -9,6 +9,7 @@ import type {
   YtImage,
   YtTrack,
 } from '@/adapters/types';
+import { PoTokenGenerator, type PoTokenMinter } from '@/core/potoken';
 
 export interface InnerTubeOptions {
   cookie?: string;
@@ -17,11 +18,12 @@ export interface InnerTubeOptions {
   /** Minimum gap between continuation page fetches (ms). 0 disables pacing. */
   pageIntervalMs?: number;
   /**
-   * Supplies a currently-valid PO token on demand. The session is (re)created
-   * with the latest token, so tokens minted by a PoTokenGenerator are picked
-   * up as soon as they refresh.
+   * Auto-mints and refreshes PO tokens bound to the resolved visitor data,
+   * so the session keeps a valid attestation without manual rotation.
    */
-  poTokenProvider?: () => Promise<string | null>;
+  minter?: PoTokenMinter;
+  /** Override for tests. Defaults to the real bootstrap session. */
+  bootstrapVisitorData?: () => Promise<string>;
 }
 
 function sleep(ms: number): Promise<void> {
@@ -237,41 +239,89 @@ function shelfItemsOf(page: SearchPage, kind: 'song' | 'album' | 'artist') {
 }
 
 /**
+ * Fetches a real visitor data from YouTube so requests carry a Google-assigned
+ * identity instead of a random locally generated one. The probe session is
+ * created without `generate_session_locally`, which makes youtubei.js fetch
+ * session data from `youtube.com/sw.js_data`.
+ */
+export async function bootstrapVisitorData(
+  createSession: () => Promise<Innertube> = () =>
+    Innertube.create({
+      client_type: ClientType.MUSIC,
+      retrieve_player: false,
+    }),
+): Promise<string> {
+  const session = await createSession();
+  const visitorData = session.session?.context?.client?.visitorData;
+  if (visitorData === undefined || visitorData === '') {
+    throw new Error('Could not bootstrap a visitor data');
+  }
+  return visitorData;
+}
+
+/**
  * Fetches normalized metadata from YouTube Music through youtube.js.
  */
 export class InnerTubeSource implements YouTubeSource {
   private readonly options: InnerTubeOptions;
   private readonly pageIntervalMs: number;
+  private readonly bootstrap: () => Promise<string>;
   private session: Promise<Innertube> | null = null;
   private sessionToken: string | null = null;
+  private bootstrapPromise: Promise<string> | null = null;
+  private tokenGenerator: PoTokenGenerator | null = null;
 
   constructor(options: InnerTubeOptions = {}) {
     this.options = options;
     this.pageIntervalMs = options.pageIntervalMs ?? 0;
+    this.bootstrap = options.bootstrapVisitorData ?? bootstrapVisitorData;
   }
 
-  private createSession(poToken: string | null): Promise<Innertube> {
+  private async resolveVisitorData(): Promise<string> {
+    if (this.options.visitorData !== undefined) {
+      return this.options.visitorData;
+    }
+    if (this.bootstrapPromise === null) {
+      this.bootstrapPromise = this.bootstrap();
+    }
+    return this.bootstrapPromise;
+  }
+
+  private async resolveToken(): Promise<string | null> {
+    if (this.options.poToken !== undefined) {
+      return this.options.poToken;
+    }
+    if (this.options.minter === undefined) {
+      return null;
+    }
+    if (this.tokenGenerator === null) {
+      const visitorData = await this.resolveVisitorData();
+      this.tokenGenerator = new PoTokenGenerator(visitorData, {
+        minter: this.options.minter,
+      });
+    }
+    return this.tokenGenerator.getToken();
+  }
+
+  private async ensureSession(): Promise<Innertube> {
+    const visitorData = await this.resolveVisitorData();
+    const token = await this.resolveToken();
+    if (this.session === null || token !== this.sessionToken) {
+      this.sessionToken = token;
+      this.session = this.createSession(token, visitorData);
+    }
+    return this.session;
+  }
+
+  private createSession(poToken: string | null, visitorData: string): Promise<Innertube> {
     return Innertube.create({
       client_type: ClientType.MUSIC,
       retrieve_player: false,
       generate_session_locally: true,
       ...(this.options.cookie !== undefined && { cookie: this.options.cookie }),
-      ...(this.options.visitorData !== undefined && {
-        visitor_data: this.options.visitorData,
-      }),
+      visitor_data: visitorData,
       ...(poToken !== null && { po_token: poToken }),
     });
-  }
-
-  private async ensureSession(): Promise<Innertube> {
-    const token = await (this.options.poTokenProvider === undefined
-      ? Promise.resolve(this.options.poToken ?? null)
-      : this.options.poTokenProvider());
-    if (this.session === null || token !== this.sessionToken) {
-      this.sessionToken = token;
-      this.session = this.createSession(token);
-    }
-    return this.session;
   }
 
   private async musicClient(): Promise<Clients.Music> {

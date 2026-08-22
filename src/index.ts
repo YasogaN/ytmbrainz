@@ -2,7 +2,6 @@ import { BgUtilsTokenMinter } from '@/adapters/bgutils';
 import { InnerTubeSource } from '@/adapters/innertube';
 import { loadConfig } from '@/core/config';
 import { MbidStore } from '@/core/mbid';
-import { PoTokenGenerator } from '@/core/potoken';
 import { CachingSource, TtlCache } from '@/server/cache';
 import { HttpRateLimiter } from '@/server/httpRateLimit';
 import { RateLimitedSource } from '@/server/rateLimit';
@@ -17,30 +16,17 @@ import { urlService } from '@/ws/services/url';
 
 const config = loadConfig();
 
-/**
- * When a static YTMB_PO_TOKEN is not configured but a visitor data is, mint
- * and refresh PO tokens automatically so the server never goes stale. Tokens
- * are bound to the visitor data, so this only works with an explicit
- * YTMB_VISITOR_DATA.
- */
-const poTokenProvider =
-  config.poToken !== null || config.visitorData === null
-    ? undefined
-    : (() => {
-        const generator = new PoTokenGenerator(config.visitorData, {
-          minter: new BgUtilsTokenMinter(),
-        });
-        return () => generator.getToken();
-      })();
-
 const source = new CachingSource(
   new RetryingSource(
     new RateLimitedSource(
       new InnerTubeSource({
+        // Optional overrides: pin an identity or hand over a static token.
+        // Without them the source bootstraps its own visitor data and mints
+        // PO tokens, so the server works out of the box.
         ...(config.visitorData !== null && { visitorData: config.visitorData }),
         ...(config.cookie !== null && { cookie: config.cookie }),
         ...(config.poToken !== null && { poToken: config.poToken }),
-        ...(poTokenProvider !== undefined && { poTokenProvider }),
+        ...(config.poToken === null && { minter: new BgUtilsTokenMinter() }),
         pageIntervalMs: config.ytMinIntervalMs,
       }),
       config.ytMinIntervalMs,
