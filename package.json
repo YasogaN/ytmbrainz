@@ -30,6 +30,8 @@
     "typescript": "^5.9.3"
   },
   "dependencies": {
+    "bgutils-js": "^4.0.3",
+    "jsdom": "^30.0.1",
     "youtubei.js": "^18.0.0"
   }
 }
