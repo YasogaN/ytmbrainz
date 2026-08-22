@@ -8,7 +8,15 @@ import { releaseService } from '@/ws/services/release';
 import { releaseGroupService } from '@/ws/services/releaseGroup';
 import { urlService } from '@/ws/services/url';
 
-export const makeApp = (source: YouTubeSource = new InnerTubeSource()) => {
+/**
+ * One InnerTube session shared by all live tests in a file. Creating a fresh
+ * session per test floods YouTube with new anonymous visitor identities from
+ * the same IP, which is a BotGuard trigger. A single reused session keeps the
+ * request profile human-shaped while still exercising the real adapter.
+ */
+export const sharedSource = new InnerTubeSource();
+
+export const makeApp = (source: YouTubeSource = sharedSource) => {
   const store = new MbidStore(':memory:');
   const app = createApp({
     source,

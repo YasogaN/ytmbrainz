@@ -1,14 +1,12 @@
 import { describe, expect, it } from 'bun:test';
-import { InnerTubeSource } from '@/adapters/innertube';
-import { makeApp } from './helpers';
+import { makeApp, sharedSource } from './helpers';
 
 const runLive = Boolean(process.env.RUN_LIVE);
 
 describe.skipIf(!runLive)('url route (live)', () => {
   it('maps a watch URL to a recording', async () => {
-    const source = new InnerTubeSource();
-    const { app, store } = makeApp(source);
-    const songs = await source.searchSongs('Roygbiv Boards of Canada');
+    const { app, store } = makeApp(sharedSource);
+    const songs = await sharedSource.searchSongs('Roygbiv Boards of Canada');
     const videoId = songs[0]?.id;
     expect(videoId).toBeTruthy();
 
@@ -29,9 +27,8 @@ describe.skipIf(!runLive)('url route (live)', () => {
   }, 60_000);
 
   it('maps a channel URL to an artist', async () => {
-    const source = new InnerTubeSource();
-    const { app, store } = makeApp(source);
-    const artists = await source.searchArtists('Boards of Canada');
+    const { app, store } = makeApp(sharedSource);
+    const artists = await sharedSource.searchArtists('Boards of Canada');
     const channelId = artists[0]?.id;
     expect(channelId).toBeTruthy();
 
@@ -51,9 +48,8 @@ describe.skipIf(!runLive)('url route (live)', () => {
   }, 60_000);
 
   it('maps an album URL to a release', async () => {
-    const source = new InnerTubeSource();
-    const { app, store } = makeApp(source);
-    const albums = await source.searchAlbums('Music Has the Right to Children');
+    const { app, store } = makeApp(sharedSource);
+    const albums = await sharedSource.searchAlbums('Music Has the Right to Children');
     const albumId = albums[0]?.id;
     expect(albumId).toBeTruthy();
 
@@ -73,9 +69,8 @@ describe.skipIf(!runLive)('url route (live)', () => {
   }, 60_000);
 
   it('finds a url entity from a url query', async () => {
-    const source = new InnerTubeSource();
-    const { app, store } = makeApp(source);
-    const songs = await source.searchSongs('Roygbiv');
+    const { app, store } = makeApp(sharedSource);
+    const songs = await sharedSource.searchSongs('Roygbiv');
     const videoId = songs[0]?.id;
     expect(videoId).toBeTruthy();
     const resource = `https://youtu.be/${videoId}`;
@@ -94,9 +89,8 @@ describe.skipIf(!runLive)('url route (live)', () => {
   }, 60_000);
 
   it('resolves a url by the MBID it served', async () => {
-    const source = new InnerTubeSource();
-    const { app, store } = makeApp(source);
-    const songs = await source.searchSongs('Roygbiv');
+    const { app, store } = makeApp(sharedSource);
+    const songs = await sharedSource.searchSongs('Roygbiv');
     const videoId = songs[0]?.id;
     expect(videoId).toBeTruthy();
     const resource = `https://www.youtube.com/watch?v=${videoId}`;

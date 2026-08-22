@@ -1,9 +1,8 @@
 import { describe, expect, it } from 'bun:test';
-import { InnerTubeSource } from '@/adapters/innertube';
 import type { YtAlbum, YtAlbumRef } from '@/adapters/types';
 import { imageIdOf } from '@/caa/artwork';
 import { toMbid } from '@/core/mbid';
-import { makeApp } from './helpers';
+import { makeApp, sharedSource } from './helpers';
 
 const runLive = Boolean(process.env.RUN_LIVE);
 
@@ -26,9 +25,8 @@ async function findAlbumWithArtwork(source: {
 
 describe.skipIf(!runLive)('cover art routes (live)', () => {
   it('serves an index with thumbnails for a release', async () => {
-    const source = new InnerTubeSource();
-    const { app, store } = makeApp(source);
-    const album = await findAlbumWithArtwork(source);
+    const { app, store } = makeApp(sharedSource);
+    const album = await findAlbumWithArtwork(sharedSource);
 
     const releaseMbid = toMbid('release', album.id);
     store.register('release', album.id);
@@ -53,9 +51,8 @@ describe.skipIf(!runLive)('cover art routes (live)', () => {
   }, 60_000);
 
   it('redirects front to the largest artwork', async () => {
-    const source = new InnerTubeSource();
-    const { app, store } = makeApp(source);
-    const album = await findAlbumWithArtwork(source);
+    const { app, store } = makeApp(sharedSource);
+    const album = await findAlbumWithArtwork(sharedSource);
 
     const releaseMbid = toMbid('release', album.id);
     store.register('release', album.id);
@@ -67,9 +64,8 @@ describe.skipIf(!runLive)('cover art routes (live)', () => {
   }, 60_000);
 
   it('rewrites a sized front to the requested dimensions', async () => {
-    const source = new InnerTubeSource();
-    const { app, store } = makeApp(source);
-    const album = await findAlbumWithArtwork(source);
+    const { app, store } = makeApp(sharedSource);
+    const album = await findAlbumWithArtwork(sharedSource);
 
     const releaseMbid = toMbid('release', album.id);
     store.register('release', album.id);
@@ -81,9 +77,8 @@ describe.skipIf(!runLive)('cover art routes (live)', () => {
   }, 60_000);
 
   it('serves an image variant for the album', async () => {
-    const source = new InnerTubeSource();
-    const { app, store } = makeApp(source);
-    const album = await findAlbumWithArtwork(source);
+    const { app, store } = makeApp(sharedSource);
+    const album = await findAlbumWithArtwork(sharedSource);
 
     const releaseMbid = toMbid('release', album.id);
     store.register('release', album.id);
@@ -102,9 +97,8 @@ describe.skipIf(!runLive)('cover art routes (live)', () => {
   }, 60_000);
 
   it('returns 404 for back cover', async () => {
-    const source = new InnerTubeSource();
-    const { app, store } = makeApp(source);
-    const album = await findAlbumWithArtwork(source);
+    const { app, store } = makeApp(sharedSource);
+    const album = await findAlbumWithArtwork(sharedSource);
 
     const releaseMbid = toMbid('release', album.id);
     store.register('release', album.id);
@@ -115,9 +109,8 @@ describe.skipIf(!runLive)('cover art routes (live)', () => {
   }, 60_000);
 
   it('returns 404 for an unknown image id', async () => {
-    const source = new InnerTubeSource();
-    const { app, store } = makeApp(source);
-    const album = await findAlbumWithArtwork(source);
+    const { app, store } = makeApp(sharedSource);
+    const album = await findAlbumWithArtwork(sharedSource);
 
     const releaseMbid = toMbid('release', album.id);
     store.register('release', album.id);
@@ -128,9 +121,8 @@ describe.skipIf(!runLive)('cover art routes (live)', () => {
   }, 60_000);
 
   it('serves the release-group index pointing at the release', async () => {
-    const source = new InnerTubeSource();
-    const { app, store } = makeApp(source);
-    const album = await findAlbumWithArtwork(source);
+    const { app, store } = makeApp(sharedSource);
+    const album = await findAlbumWithArtwork(sharedSource);
 
     const releaseMbid = toMbid('release', album.id);
     const groupMbid = toMbid('release-group', album.id);
@@ -144,9 +136,8 @@ describe.skipIf(!runLive)('cover art routes (live)', () => {
   }, 60_000);
 
   it('serves a HEAD index without a body', async () => {
-    const source = new InnerTubeSource();
-    const { app, store } = makeApp(source);
-    const album = await findAlbumWithArtwork(source);
+    const { app, store } = makeApp(sharedSource);
+    const album = await findAlbumWithArtwork(sharedSource);
 
     const releaseMbid = toMbid('release', album.id);
     store.register('release', album.id);
@@ -160,9 +151,8 @@ describe.skipIf(!runLive)('cover art routes (live)', () => {
   }, 60_000);
 
   it('front redirect points at a reachable image', async () => {
-    const source = new InnerTubeSource();
-    const { app, store } = makeApp(source);
-    const album = await findAlbumWithArtwork(source);
+    const { app, store } = makeApp(sharedSource);
+    const album = await findAlbumWithArtwork(sharedSource);
 
     const releaseMbid = toMbid('release', album.id);
     store.register('release', album.id);
