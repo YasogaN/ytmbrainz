@@ -21,7 +21,7 @@ ENV NODE_ENV=production \
     YTMB_HOST=0.0.0.0 \
     YTMB_DB_PATH=/app/data/ytmbrainz.db
 
-# Copy built bundle from build stage
+# Copy built bundle from build stage (includes impit's native .node assets)
 COPY --from=build /app/dist /app/dist
 
 # Setup non-root user and persistent data directory
