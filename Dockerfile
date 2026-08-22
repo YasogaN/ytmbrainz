@@ -11,7 +11,9 @@ RUN bun install --frozen-lockfile
 FROM deps AS build
 COPY . .
 RUN bun run preflight
-RUN bun build ./src/index.ts --outdir ./dist --target bun --minify
+# jsdom stays external: it reads its default stylesheet and css-tree reads
+# data files via createRequire at runtime, which bundling would break.
+RUN bun build ./src/index.ts --outdir ./dist --target bun --minify --external jsdom
 
 # 3. Production runtime
 FROM oven/bun:1.3-alpine AS runtime
@@ -20,6 +22,12 @@ WORKDIR /app
 ENV NODE_ENV=production \
     YTMB_HOST=0.0.0.0 \
     YTMB_DB_PATH=/app/data/ytmbrainz.db
+
+# Production dependencies: jsdom (and its asset reads) and impit's native
+# binding must be present at runtime.
+COPY package.json bun.lock bunfig.toml ./
+ENV LEFTHOOK=0
+RUN bun install --production --frozen-lockfile
 
 # Copy built bundle from build stage (includes impit's native .node assets)
 COPY --from=build /app/dist /app/dist
