@@ -20,4 +20,5 @@ jobs:
           YTMB_VISITOR_DATA: ${{ secrets.YTMB_VISITOR_DATA }}
           YTMB_COOKIE: ${{ secrets.YTMB_COOKIE }}
           YTMB_PO_TOKEN: ${{ secrets.YTMB_PO_TOKEN }}
+          YTMB_YT_RATE_LIMIT_MS: "3000"
         run: RUN_LIVE=1 bun test --config=bunfig.live.toml --parallel=1 tests/live
