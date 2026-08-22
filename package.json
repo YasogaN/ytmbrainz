@@ -17,7 +17,7 @@
     "test": "bun test",
     "test:coverage": "bun test --coverage",
     "test:watch": "bun test --watch",
-    "test:live": "RUN_LIVE=1 bun test tests/live",
+    "test:live": "RUN_LIVE=1 bun test --parallel=1 tests/live",
     "gen:potoken": "bun scripts/gen-potoken.ts",
     "preflight": "bun run check && bun run typecheck && bun run test:coverage",
     "postinstall": "if [ \"$LEFTHOOK\" = \"0\" ]; then echo 'skipping lefthook install'; else lefthook install --force; fi"

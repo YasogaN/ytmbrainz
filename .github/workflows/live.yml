@@ -20,4 +20,4 @@ jobs:
           YTMB_VISITOR_DATA: ${{ secrets.YTMB_VISITOR_DATA }}
           YTMB_COOKIE: ${{ secrets.YTMB_COOKIE }}
           YTMB_PO_TOKEN: ${{ secrets.YTMB_PO_TOKEN }}
-        run: RUN_LIVE=1 bun test --config=bunfig.live.toml tests/live
+        run: RUN_LIVE=1 bun test --config=bunfig.live.toml --parallel=1 tests/live

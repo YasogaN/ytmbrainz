@@ -1,15 +1,11 @@
 import { describe, expect, it } from 'bun:test';
 import { CachingSource, TtlCache } from '@/server/cache';
-import { RateLimitedSource } from '@/server/rateLimit';
 import { firstId, makeApp, sharedSource } from './helpers';
 
 const runLive = Boolean(process.env.RUN_LIVE);
 
 const makeProductionApp = () => {
-  const source = new CachingSource(
-    new RateLimitedSource(sharedSource, 500),
-    new TtlCache(3600_000),
-  );
+  const source = new CachingSource(sharedSource, new TtlCache(3600_000));
   return makeApp(source);
 };
 

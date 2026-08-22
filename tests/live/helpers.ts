@@ -3,6 +3,7 @@ import { InnerTubeSource } from '@/adapters/innertube';
 import type { YouTubeSource } from '@/adapters/source';
 import { loadConfig } from '@/core/config';
 import { MbidStore } from '@/core/mbid';
+import { RateLimitedSource } from '@/server/rateLimit';
 import { createApp } from '@/ws/app';
 import { artistService } from '@/ws/services/artist';
 import { recordingService } from '@/ws/services/recording';
@@ -20,14 +21,21 @@ const liveConfig = loadConfig();
  *
  * Like the production entry point, the session works out of the box:
  * YTMB_VISITOR_DATA, YTMB_COOKIE, and YTMB_PO_TOKEN remain optional overrides,
- * and a BgUtils minter keeps the PO token fresh automatically.
+ * a BgUtils minter keeps the PO token fresh automatically, and all calls are
+ * serialized through the same rate limiter so live tests respect the same
+ * spacing as the deployed server. Run the suite with `--parallel=1` so files
+ * do not interleave bursts.
  */
-export const sharedSource = new InnerTubeSource({
-  ...(liveConfig.visitorData !== null && { visitorData: liveConfig.visitorData }),
-  ...(liveConfig.cookie !== null && { cookie: liveConfig.cookie }),
-  ...(liveConfig.poToken !== null && { poToken: liveConfig.poToken }),
-  ...(liveConfig.poToken === null && { minter: new BgUtilsTokenMinter() }),
-});
+export const sharedSource: YouTubeSource = new RateLimitedSource(
+  new InnerTubeSource({
+    ...(liveConfig.visitorData !== null && { visitorData: liveConfig.visitorData }),
+    ...(liveConfig.cookie !== null && { cookie: liveConfig.cookie }),
+    ...(liveConfig.poToken !== null && { poToken: liveConfig.poToken }),
+    ...(liveConfig.poToken === null && { minter: new BgUtilsTokenMinter() }),
+    pageIntervalMs: liveConfig.ytMinIntervalMs,
+  }),
+  liveConfig.ytMinIntervalMs,
+);
 
 export const makeApp = (source: YouTubeSource = sharedSource) => {
   const store = new MbidStore(':memory:');
