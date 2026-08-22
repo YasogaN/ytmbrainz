@@ -46,9 +46,10 @@ that gap: point your client's MusicBrainz server at it and the metadata shows up
 - Cover Art Archive-compatible cover routes (`/release/<mbid>/front` and friends)
   served straight from YouTube Music's album art
 - Built to not get banned: zero-config identity that bootstraps a real visitor
-  data and auto-mints/refreshes PO tokens, plus upstream caching with request
-  coalescing, serialized YouTube rate limiting, retries with exponential
-  backoff, and per-IP HTTP rate limiting
+  data and auto-mints/refreshes PO tokens, browser impersonation (Chrome TLS
+  fingerprint via [impit](https://github.com/apify/impit)) on every outbound
+  request, plus upstream caching with request coalescing, serialized YouTube
+  rate limiting, retries with exponential backoff, and per-IP HTTP rate limiting
 - Ships as a hardened Docker image: compiled single binary, non-root user, healthcheck
 - 100% coverage enforced — lint, typecheck, and the coverage gate run in CI
 
@@ -155,8 +156,12 @@ Configuration is read from the environment:
 ytmbrainz works out of the box: on first use it bootstraps a real visitor
 data from YouTube and mints Proof of Origin tokens bound to it (via
 [BgUtils](https://github.com/LuanRT/BgUtils)), auto-refreshing them as they
-expire so the session never goes stale. No `YTMB_*` identity configuration is
-required.
+expire so the session never goes stale. Every outbound request — InnerTube
+calls, the bootstrap session, and the BotGuard attestation — is sent through
+a client that impersonates a real Chrome browser at the TLS fingerprint and
+header level (via [impit](https://github.com/apify/impit)), falling back to
+the native fetch if the native binding is unavailable. No `YTMB_*` identity
+configuration is required.
 
 The identity variables are **optional overrides** for cases where you want to
 pin a specific identity (for example a logged-in YouTube session):
