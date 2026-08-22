@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'bun:test';
+import { beforeAll, describe, expect, it } from 'bun:test';
 import type { YtAlbum, YtAlbumRef } from '@/adapters/types';
 import { imageIdOf } from '@/caa/artwork';
 import { toMbid } from '@/core/mbid';
@@ -24,9 +24,16 @@ async function findAlbumWithArtwork(source: {
 }
 
 describe.skipIf(!runLive)('cover art routes (live)', () => {
+  // Finding an album with artwork is the heaviest part of this suite; resolve
+  // it once so the eight tests share the fixture instead of re-searching.
+  let fixture!: YtAlbum & { id: string };
+  beforeAll(async () => {
+    fixture = await findAlbumWithArtwork(sharedSource);
+  });
+
   it('serves an index with thumbnails for a release', async () => {
     const { app, store } = makeApp(sharedSource);
-    const album = await findAlbumWithArtwork(sharedSource);
+    const album = fixture;
 
     const releaseMbid = toMbid('release', album.id);
     store.register('release', album.id);
@@ -52,7 +59,7 @@ describe.skipIf(!runLive)('cover art routes (live)', () => {
 
   it('redirects front to the largest artwork', async () => {
     const { app, store } = makeApp(sharedSource);
-    const album = await findAlbumWithArtwork(sharedSource);
+    const album = fixture;
 
     const releaseMbid = toMbid('release', album.id);
     store.register('release', album.id);
@@ -65,7 +72,7 @@ describe.skipIf(!runLive)('cover art routes (live)', () => {
 
   it('rewrites a sized front to the requested dimensions', async () => {
     const { app, store } = makeApp(sharedSource);
-    const album = await findAlbumWithArtwork(sharedSource);
+    const album = fixture;
 
     const releaseMbid = toMbid('release', album.id);
     store.register('release', album.id);
@@ -78,7 +85,7 @@ describe.skipIf(!runLive)('cover art routes (live)', () => {
 
   it('serves an image variant for the album', async () => {
     const { app, store } = makeApp(sharedSource);
-    const album = await findAlbumWithArtwork(sharedSource);
+    const album = fixture;
 
     const releaseMbid = toMbid('release', album.id);
     store.register('release', album.id);
@@ -98,7 +105,7 @@ describe.skipIf(!runLive)('cover art routes (live)', () => {
 
   it('returns 404 for back cover', async () => {
     const { app, store } = makeApp(sharedSource);
-    const album = await findAlbumWithArtwork(sharedSource);
+    const album = fixture;
 
     const releaseMbid = toMbid('release', album.id);
     store.register('release', album.id);
@@ -110,7 +117,7 @@ describe.skipIf(!runLive)('cover art routes (live)', () => {
 
   it('returns 404 for an unknown image id', async () => {
     const { app, store } = makeApp(sharedSource);
-    const album = await findAlbumWithArtwork(sharedSource);
+    const album = fixture;
 
     const releaseMbid = toMbid('release', album.id);
     store.register('release', album.id);
@@ -122,7 +129,7 @@ describe.skipIf(!runLive)('cover art routes (live)', () => {
 
   it('serves the release-group index pointing at the release', async () => {
     const { app, store } = makeApp(sharedSource);
-    const album = await findAlbumWithArtwork(sharedSource);
+    const album = fixture;
 
     const releaseMbid = toMbid('release', album.id);
     const groupMbid = toMbid('release-group', album.id);
@@ -137,7 +144,7 @@ describe.skipIf(!runLive)('cover art routes (live)', () => {
 
   it('serves a HEAD index without a body', async () => {
     const { app, store } = makeApp(sharedSource);
-    const album = await findAlbumWithArtwork(sharedSource);
+    const album = fixture;
 
     const releaseMbid = toMbid('release', album.id);
     store.register('release', album.id);
@@ -152,7 +159,7 @@ describe.skipIf(!runLive)('cover art routes (live)', () => {
 
   it('front redirect points at a reachable image', async () => {
     const { app, store } = makeApp(sharedSource);
-    const album = await findAlbumWithArtwork(sharedSource);
+    const album = fixture;
 
     const releaseMbid = toMbid('release', album.id);
     store.register('release', album.id);

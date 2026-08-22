@@ -3,6 +3,7 @@ import { InnerTubeSource } from '@/adapters/innertube';
 import type { YouTubeSource } from '@/adapters/source';
 import { loadConfig } from '@/core/config';
 import { MbidStore } from '@/core/mbid';
+import { CachingSource, TtlCache } from '@/server/cache';
 import { RateLimitedSource } from '@/server/rateLimit';
 import { createApp } from '@/ws/app';
 import { artistService } from '@/ws/services/artist';
@@ -40,7 +41,9 @@ export const sharedSource: YouTubeSource = new RateLimitedSource(
 export const makeApp = (source: YouTubeSource = sharedSource) => {
   const store = new MbidStore(':memory:');
   const app = createApp({
-    source,
+    // Like production, cache upstream responses so repeated lookups inside a
+    // test do not re-hit YouTube.
+    source: new CachingSource(source, new TtlCache(3600_000)),
     store,
     services: {
       artist: artistService,
