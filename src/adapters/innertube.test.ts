@@ -14,6 +14,7 @@ interface MusicShim {
 
 let music: MusicShim;
 let createOptions: Record<string, unknown> | undefined;
+let createCalls = 0;
 
 beforeEach(() => {
   music = {
@@ -23,11 +24,13 @@ beforeEach(() => {
     getInfo: mock(),
   };
   createOptions = undefined;
+  createCalls = 0;
 });
 
 mock.module('youtubei.js', () => ({
   Innertube: {
     create: async (options: Record<string, unknown>) => {
+      createCalls += 1;
       createOptions = options;
       return { music };
     },
@@ -51,12 +54,15 @@ const songItem = (overrides: Record<string, unknown> = {}) => ({
 });
 
 describe('InnerTubeSource', () => {
-  it('passes session options through to session creation', () => {
-    new InnerTubeSource({
+  it('passes session options through to session creation', async () => {
+    music.search.mockReturnValue({ songs: { contents: [] } });
+    const source = new InnerTubeSource({
       cookie: 'SID=abc',
       visitorData: 'visitor123',
       poToken: 'potok',
     });
+
+    await source.searchSongs('roygbiv');
 
     expect(createOptions).toMatchObject({
       client_type: 'WEB_REMIX',
@@ -64,6 +70,36 @@ describe('InnerTubeSource', () => {
       visitor_data: 'visitor123',
       po_token: 'potok',
     });
+  });
+
+  it('recreates the session when the po token provider refreshes', async () => {
+    music.search.mockReturnValue({ songs: { contents: [] } });
+    let token: string | null = 'token-1';
+    const source = new InnerTubeSource({
+      poTokenProvider: async () => token,
+    });
+
+    await source.searchSongs('a');
+    await source.searchSongs('b');
+    expect(createCalls).toBe(1);
+    expect(createOptions?.po_token).toBe('token-1');
+
+    token = 'token-2';
+    await source.searchSongs('c');
+    expect(createCalls).toBe(2);
+    expect(createOptions?.po_token).toBe('token-2');
+  });
+
+  it('drops the po token when the provider returns null', async () => {
+    music.search.mockReturnValue({ songs: { contents: [] } });
+    const source = new InnerTubeSource({
+      poTokenProvider: async () => null,
+    });
+
+    await source.searchSongs('a');
+
+    expect(createCalls).toBe(1);
+    expect(createOptions?.po_token).toBeUndefined();
   });
 
   it('maps song search results', async () => {

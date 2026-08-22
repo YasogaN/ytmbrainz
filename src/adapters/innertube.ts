@@ -16,6 +16,12 @@ export interface InnerTubeOptions {
   poToken?: string;
   /** Minimum gap between continuation page fetches (ms). 0 disables pacing. */
   pageIntervalMs?: number;
+  /**
+   * Supplies a currently-valid PO token on demand. The session is (re)created
+   * with the latest token, so tokens minted by a PoTokenGenerator are picked
+   * up as soon as they refresh.
+   */
+  poTokenProvider?: () => Promise<string | null>;
 }
 
 function sleep(ms: number): Promise<void> {
@@ -234,23 +240,42 @@ function shelfItemsOf(page: SearchPage, kind: 'song' | 'album' | 'artist') {
  * Fetches normalized metadata from YouTube Music through youtube.js.
  */
 export class InnerTubeSource implements YouTubeSource {
-  private readonly session: Promise<Innertube>;
+  private readonly options: InnerTubeOptions;
   private readonly pageIntervalMs: number;
+  private session: Promise<Innertube> | null = null;
+  private sessionToken: string | null = null;
 
   constructor(options: InnerTubeOptions = {}) {
+    this.options = options;
     this.pageIntervalMs = options.pageIntervalMs ?? 0;
-    this.session = Innertube.create({
+  }
+
+  private createSession(poToken: string | null): Promise<Innertube> {
+    return Innertube.create({
       client_type: ClientType.MUSIC,
       retrieve_player: false,
       generate_session_locally: true,
-      ...(options.cookie !== undefined && { cookie: options.cookie }),
-      ...(options.visitorData !== undefined && { visitor_data: options.visitorData }),
-      ...(options.poToken !== undefined && { po_token: options.poToken }),
+      ...(this.options.cookie !== undefined && { cookie: this.options.cookie }),
+      ...(this.options.visitorData !== undefined && {
+        visitor_data: this.options.visitorData,
+      }),
+      ...(poToken !== null && { po_token: poToken }),
     });
   }
 
+  private async ensureSession(): Promise<Innertube> {
+    const token = await (this.options.poTokenProvider === undefined
+      ? Promise.resolve(this.options.poToken ?? null)
+      : this.options.poTokenProvider());
+    if (this.session === null || token !== this.sessionToken) {
+      this.sessionToken = token;
+      this.session = this.createSession(token);
+    }
+    return this.session;
+  }
+
   private async musicClient(): Promise<Clients.Music> {
-    const yt = await this.session;
+    const yt = await this.ensureSession();
     return yt.music;
   }
 
