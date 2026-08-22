@@ -3,6 +3,7 @@ import type { WebPoSignalOutput } from 'bgutils-js/shared-types';
 import { buildURL, getHeaders, USER_AGENT } from 'bgutils-js/utils';
 import { WebPoMinter } from 'bgutils-js/webpo';
 import { JSDOM } from 'jsdom';
+import { browserFetch } from '@/adapters/http';
 import type { PoTokenMinter, PoTokenResult } from '@/core/potoken';
 
 export const PO_REQUEST_KEY = 'O43z0dpjhgX20SCx4KAo';
@@ -26,7 +27,7 @@ export class BgUtilsTokenMinter implements PoTokenMinter {
 
   constructor(options: BgUtilsMinterOptions = {}) {
     this.requestKey = options.requestKey ?? PO_REQUEST_KEY;
-    this.fetchFunction = options.fetchFunction ?? fetch;
+    this.fetchFunction = options.fetchFunction ?? browserFetch();
     this.evalScript = options.evalScript ?? (script => new Function(script)());
   }
 
