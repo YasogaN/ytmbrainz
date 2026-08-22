@@ -2,9 +2,12 @@ import { Impit } from 'impit';
 
 let cached: typeof fetch | null = null;
 
+/** Minimal fetch call signature used by the HTTP clients in this project. */
+export type FetchLike = (input: string | URL | Request, init?: RequestInit) => Promise<Response>;
+
 export interface BrowserFetchDeps {
   /** Overridable for tests. */
-  createImpit?: (options: { browser: 'chrome' }) => { fetch: typeof fetch };
+  createImpit?: (options: { browser: 'chrome' }) => { fetch: FetchLike };
 }
 
 /**
@@ -17,13 +20,12 @@ export interface BrowserFetchDeps {
 export function createBrowserFetch(deps: BrowserFetchDeps = {}): typeof fetch {
   const createImpit =
     deps.createImpit ??
-    ((options: { browser: 'chrome' }) =>
-      // impit.fetch is fetch-compatible but returns ImpitResponse (a
-      // structural Response), so the static type needs a cast.
-      new Impit(options) as unknown as { fetch: typeof fetch });
+    // impit.fetch is fetch-compatible but returns ImpitResponse (a structural
+    // Response), so the static type needs a cast.
+    ((options: { browser: 'chrome' }) => new Impit(options) as unknown as { fetch: FetchLike });
   try {
     const impit = createImpit({ browser: 'chrome' });
-    return impit.fetch.bind(impit);
+    return impit.fetch.bind(impit) as unknown as typeof fetch;
   } catch {
     return fetch;
   }

@@ -1,5 +1,6 @@
 import { type Clients, ClientType, Innertube, type YTMusic, type YTNodes } from 'youtubei.js';
 import { toNotFoundOrThrow } from '@/adapters/errors';
+import { browserFetch } from '@/adapters/http';
 import type { YouTubeSource } from '@/adapters/source';
 import type {
   YtAlbum,
@@ -24,6 +25,8 @@ export interface InnerTubeOptions {
   minter?: PoTokenMinter;
   /** Override for tests. Defaults to the real bootstrap session. */
   bootstrapVisitorData?: () => Promise<string>;
+  /** Fetch used for all InnerTube requests. Defaults to browser impersonation. */
+  fetchFunction?: typeof fetch;
 }
 
 function sleep(ms: number): Promise<void> {
@@ -249,6 +252,7 @@ export async function bootstrapVisitorData(
     Innertube.create({
       client_type: ClientType.MUSIC,
       retrieve_player: false,
+      fetch: browserFetch(),
     }),
 ): Promise<string> {
   const session = await createSession();
@@ -318,6 +322,7 @@ export class InnerTubeSource implements YouTubeSource {
       client_type: ClientType.MUSIC,
       retrieve_player: false,
       generate_session_locally: true,
+      fetch: this.options.fetchFunction ?? browserFetch(),
       ...(this.options.cookie !== undefined && { cookie: this.options.cookie }),
       visitor_data: visitorData,
       ...(poToken !== null && { po_token: poToken }),
