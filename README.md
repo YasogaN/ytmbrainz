@@ -45,8 +45,10 @@ that gap: point your client's MusicBrainz server at it and the metadata shows up
   per-entity validation
 - Cover Art Archive-compatible cover routes (`/release/<mbid>/front` and friends)
   served straight from YouTube Music's album art
-- Built to not get banned: upstream caching with request coalescing, serialized
-  YouTube rate limiting, retries with exponential backoff, and per-IP HTTP rate limiting
+- Built to not get banned: zero-config identity that bootstraps a real visitor
+  data and auto-mints/refreshes PO tokens, plus upstream caching with request
+  coalescing, serialized YouTube rate limiting, retries with exponential
+  backoff, and per-IP HTTP rate limiting
 - Ships as a hardened Docker image: compiled single binary, non-root user, healthcheck
 - 100% coverage enforced — lint, typecheck, and the coverage gate run in CI
 
@@ -143,26 +145,33 @@ Configuration is read from the environment:
 | `YTMB_YT_RETRIES`       | `2`                   | Retries for transient YT failures   |
 | `YTMB_YT_BACKOFF_MS`    | `250`                 | Retry backoff base (exponential)    |
 | `YTMB_HTTP_RATE_LIMIT`  | `10`                  | Per-IP requests/sec (0 disables)    |
-| `YTMB_VISITOR_DATA`     | unset                 | Persistent InnerTube visitor data   |
-| `YTMB_COOKIE`           | unset                 | YouTube cookies (for authenticated) |
-| `YTMB_PO_TOKEN`         | unset                 | Proof-of-origin token               |
+| `YTMB_VISITOR_DATA`     | unset                 | Optional: pin a visitor data        |
+| `YTMB_COOKIE`           | unset                 | Optional: YouTube cookies (authenticated) |
+| `YTMB_PO_TOKEN`         | unset                 | Optional: pin a static PO token     |
 | `YTMB_DB_PATH`          | `./data/ytmbrainz.db` | MBID store (SQLite)                 |
 
-YouTube may throw bot walls on unauthenticated requests. If that happens, provide
-`YTMB_VISITOR_DATA` (and optionally `YTMB_COOKIE` / `YTMB_PO_TOKEN`) from your own
-logged-in YouTube session.
+## Bot walls & identity
 
-To mint a fresh Proof of Origin token bound to your visitor data instead of
-harvesting one by hand, run:
+ytmbrainz works out of the box: on first use it bootstraps a real visitor
+data from YouTube and mints Proof of Origin tokens bound to it (via
+[BgUtils](https://github.com/LuanRT/BgUtils)), auto-refreshing them as they
+expire so the session never goes stale. No `YTMB_*` identity configuration is
+required.
+
+The identity variables are **optional overrides** for cases where you want to
+pin a specific identity (for example a logged-in YouTube session):
+
+- `YTMB_VISITOR_DATA` — a persistent visitor data string.
+- `YTMB_COOKIE` — YouTube cookies, for authenticated requests.
+- `YTMB_PO_TOKEN` — a static PO token. When set, the server uses it as-is and
+  skips auto-minting.
+
+For power users, `bun run gen:potoken` mints a fresh PO token bound to a given
+visitor data for manual setup:
 
 ```sh
-YTMB_VISITOR_DATA=... bun run gen:potoken
+YTMB_VISITOR_DATA=... bun run gen:potoken   # -> put the output in YTMB_PO_TOKEN
 ```
-
-and put the output in `YTMB_PO_TOKEN`. If `YTMB_PO_TOKEN` is left unset but
-`YTMB_VISITOR_DATA` is set, the server mints and auto-refreshes its own PO
-tokens at runtime (via [BgUtils](https://github.com/LuanRT/BgUtils)) so the
-session stays valid without manual rotation.
 
 ## API
 
