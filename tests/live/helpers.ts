@@ -1,3 +1,4 @@
+import { BgUtilsTokenMinter } from '@/adapters/bgutils';
 import { InnerTubeSource } from '@/adapters/innertube';
 import type { YouTubeSource } from '@/adapters/source';
 import { loadConfig } from '@/core/config';
@@ -17,14 +18,15 @@ const liveConfig = loadConfig();
  * the same IP, which is a BotGuard trigger. A single reused session keeps the
  * request profile human-shaped while still exercising the real adapter.
  *
- * Like the production entry point, the session picks up YTMB_VISITOR_DATA,
- * YTMB_COOKIE, and YTMB_PO_TOKEN so live tests can authenticate the same way
- * the deployed server does.
+ * Like the production entry point, the session works out of the box:
+ * YTMB_VISITOR_DATA, YTMB_COOKIE, and YTMB_PO_TOKEN remain optional overrides,
+ * and a BgUtils minter keeps the PO token fresh automatically.
  */
 export const sharedSource = new InnerTubeSource({
   ...(liveConfig.visitorData !== null && { visitorData: liveConfig.visitorData }),
   ...(liveConfig.cookie !== null && { cookie: liveConfig.cookie }),
   ...(liveConfig.poToken !== null && { poToken: liveConfig.poToken }),
+  ...(liveConfig.poToken === null && { minter: new BgUtilsTokenMinter() }),
 });
 
 export const makeApp = (source: YouTubeSource = sharedSource) => {
