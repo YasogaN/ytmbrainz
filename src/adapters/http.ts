@@ -1,4 +1,9 @@
-import { Impit } from 'impit';
+import { createRequire } from 'node:module';
+
+// impit is loaded lazily via require so a missing native binding surfaces as a
+// catchable throw inside createBrowserFetch, instead of crashing this module
+// at import time (its index.wrapper.js loads the binding at module scope).
+const require = createRequire(import.meta.url);
 
 let cached: typeof fetch | null = null;
 
@@ -22,7 +27,10 @@ export function createBrowserFetch(deps: BrowserFetchDeps = {}): typeof fetch {
     deps.createImpit ??
     // impit.fetch is fetch-compatible but returns ImpitResponse (a structural
     // Response), so the static type needs a cast.
-    ((options: { browser: 'chrome' }) => new Impit(options) as unknown as { fetch: FetchLike });
+    (() => {
+      const { Impit } = require('impit') as typeof import('impit');
+      return new Impit({ browser: 'chrome' }) as unknown as { fetch: FetchLike };
+    });
   try {
     const impit = createImpit({ browser: 'chrome' });
     return impit.fetch.bind(impit) as unknown as typeof fetch;
