@@ -50,7 +50,8 @@ that gap: point your client's MusicBrainz server at it and the metadata shows up
   fingerprint via [impit](https://github.com/apify/impit)) on every outbound
   request, plus upstream caching with request coalescing, serialized YouTube
   rate limiting, retries with exponential backoff, and per-IP HTTP rate limiting
-- Ships as a hardened Docker image: compiled single binary, non-root user, healthcheck
+- Ships as a hardened Docker image: compiled bundle plus minimal runtime deps
+  (jsdom, impit's native binding), non-root user, healthcheck
 - 100% coverage enforced — lint, typecheck, and the coverage gate run in CI
 
 ## Stack
@@ -68,6 +69,9 @@ that gap: point your client's MusicBrainz server at it and the metadata shows up
   client only, no main-YouTube endpoints
 - [bgutils-js](https://github.com/LuanRT/BgUtils) for minting Proof of Origin tokens
   against BotGuard
+- [impit](https://github.com/apify/impit) for browser impersonation (Chrome TLS
+  fingerprint) on outbound requests, and [jsdom](https://github.com/jsdom/jsdom)
+  as the DOM shim for BotGuard's interpreter
 - `bun:sqlite` for the persistent, deterministic MBID store
 
 ## Quick start
@@ -241,9 +245,10 @@ The image is built in three stages:
 
 1. **deps** — installs with the frozen lockfile
 2. **build** — runs the full preflight gate (lint, typecheck, 100% coverage tests),
-   then compiles `src/index.ts` into a standalone binary
-3. **runtime** — ships only the binary, runs as an unprivileged `ytmbrainz` user,
-   with a `/health` healthcheck
+   then compiles `src/index.ts` into a bundle (keeping `jsdom` external)
+3. **runtime** — installs the minimal production deps (jsdom and impit's native
+   binding, which must be present at runtime), copies the built bundle, runs as
+   an unprivileged `ytmbrainz` user, with a `/health` healthcheck
 
 Images are published to GHCR (`ghcr.io/yasogan/ytmbrainz`) on `v*` tags.
 
