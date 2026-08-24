@@ -1,18 +1,9 @@
 import { describe, expect, it } from 'bun:test';
-import { InnerTubeSource } from '@/adapters/innertube';
-import { CachingSource, TtlCache } from '@/server/cache';
-import { RateLimitedSource } from '@/server/rateLimit';
-import { firstId, makeApp } from './helpers';
+import { firstId, makeApp, sharedSource } from './helpers';
 
 const runLive = Boolean(process.env.RUN_LIVE);
 
-const makeProductionApp = () => {
-  const source = new CachingSource(
-    new RateLimitedSource(new InnerTubeSource(), 500),
-    new TtlCache(3600_000),
-  );
-  return makeApp(source);
-};
+const makeProductionApp = () => makeApp(sharedSource);
 
 describe.skipIf(!runLive)('production stack (live)', () => {
   it('serves a recording search through the cache and rate limiter', async () => {

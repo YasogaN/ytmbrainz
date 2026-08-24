@@ -14,6 +14,7 @@ interface MusicShim {
 
 let music: MusicShim;
 let createOptions: Record<string, unknown> | undefined;
+let createCalls = 0;
 
 beforeEach(() => {
   music = {
@@ -23,19 +24,24 @@ beforeEach(() => {
     getInfo: mock(),
   };
   createOptions = undefined;
+  createCalls = 0;
 });
 
 mock.module('youtubei.js', () => ({
   Innertube: {
     create: async (options: Record<string, unknown>) => {
+      createCalls += 1;
       createOptions = options;
-      return { music };
+      return {
+        music,
+        session: { context: { client: { visitorData: 'mock-visitor' } } },
+      };
     },
   },
   ClientType: { MUSIC: 'WEB_REMIX' },
 }));
 
-import { InnerTubeSource } from '@/adapters/innertube';
+import { bootstrapVisitorData, InnerTubeSource } from '@/adapters/innertube';
 
 const text = (value: string, runs: Run[] = []) => ({ toString: () => value, runs });
 
@@ -51,12 +57,15 @@ const songItem = (overrides: Record<string, unknown> = {}) => ({
 });
 
 describe('InnerTubeSource', () => {
-  it('passes session options through to session creation', () => {
-    new InnerTubeSource({
+  it('passes session options through to session creation', async () => {
+    music.search.mockReturnValue({ songs: { contents: [] } });
+    const source = new InnerTubeSource({
       cookie: 'SID=abc',
       visitorData: 'visitor123',
       poToken: 'potok',
     });
+
+    await source.searchSongs('roygbiv');
 
     expect(createOptions).toMatchObject({
       client_type: 'WEB_REMIX',
@@ -64,6 +73,106 @@ describe('InnerTubeSource', () => {
       visitor_data: 'visitor123',
       po_token: 'potok',
     });
+  });
+
+  it('bootstraps a visitor data when none is configured', async () => {
+    music.search.mockReturnValue({ songs: { contents: [] } });
+    let bootstrapCalls = 0;
+    const source = new InnerTubeSource({
+      bootstrapVisitorData: async () => {
+        bootstrapCalls += 1;
+        return 'bootstrapped-visitor';
+      },
+    });
+
+    await source.searchSongs('a');
+    await source.searchSongs('b');
+
+    expect(bootstrapCalls).toBe(1);
+    expect(createOptions?.visitor_data).toBe('bootstrapped-visitor');
+    expect(createOptions?.po_token).toBeUndefined();
+  });
+
+  it('uses the configured visitor data instead of bootstrapping', async () => {
+    music.search.mockReturnValue({ songs: { contents: [] } });
+    let bootstrapCalls = 0;
+    const source = new InnerTubeSource({
+      visitorData: 'configured-visitor',
+      bootstrapVisitorData: async () => {
+        bootstrapCalls += 1;
+        return 'bootstrapped-visitor';
+      },
+    });
+
+    await source.searchSongs('a');
+
+    expect(bootstrapCalls).toBe(0);
+    expect(createOptions?.visitor_data).toBe('configured-visitor');
+  });
+
+  it('mints a token bound to the visitor data through the minter', async () => {
+    music.search.mockReturnValue({ songs: { contents: [] } });
+    const bindings: string[] = [];
+    const source = new InnerTubeSource({
+      visitorData: 'visitor123',
+      minter: {
+        mint: async (binding: string) => {
+          bindings.push(binding);
+          return { token: 'minted-token', ttlSecs: 3600 };
+        },
+      },
+    });
+
+    await source.searchSongs('a');
+    await source.searchSongs('b');
+
+    expect(bindings).toEqual(['visitor123']);
+    expect(createCalls).toBe(1);
+    expect(createOptions?.po_token).toBe('minted-token');
+    expect(createOptions?.visitor_data).toBe('visitor123');
+  });
+
+  it('recreates the session when the minted token refreshes', async () => {
+    music.search.mockReturnValue({ songs: { contents: [] } });
+    let mintCalls = 0;
+    const source = new InnerTubeSource({
+      visitorData: 'visitor123',
+      minter: {
+        // A zero TTL makes every getToken re-mint, simulating a refresh.
+        mint: async () => {
+          mintCalls += 1;
+          return { token: `token-${mintCalls}`, ttlSecs: 0 };
+        },
+      },
+    });
+
+    await source.searchSongs('a');
+    expect(createCalls).toBe(1);
+    expect(createOptions?.po_token).toBe('token-1');
+
+    await source.searchSongs('b');
+    expect(createCalls).toBe(2);
+    expect(createOptions?.po_token).toBe('token-2');
+  });
+
+  it('prefers a static po token over the minter', async () => {
+    music.search.mockReturnValue({ songs: { contents: [] } });
+    let mintCalls = 0;
+    const source = new InnerTubeSource({
+      visitorData: 'visitor123',
+      poToken: 'static-token',
+      minter: {
+        mint: async () => {
+          mintCalls += 1;
+          return { token: 'minted', ttlSecs: 3600 };
+        },
+      },
+    });
+
+    await source.searchSongs('a');
+
+    expect(mintCalls).toBe(0);
+    expect(createOptions?.po_token).toBe('static-token');
   });
 
   it('maps song search results', async () => {
@@ -113,6 +222,29 @@ describe('InnerTubeSource', () => {
 
     const all = await source.searchSongs('x', 5);
     expect(all.map(song => song.id)).toEqual(['v1', 'v2', 'v3', 'v4']);
+  });
+
+  it('spaces continuation page fetches by the configured interval', async () => {
+    music.search.mockReturnValue({
+      songs: { contents: [songItem({ id: 'v1' })] },
+      has_continuation: true,
+      getContinuation: async () => ({
+        contents: { contents: [songItem({ id: 'v2' })] },
+        has_continuation: true,
+        getContinuation: async () => ({
+          contents: { contents: [songItem({ id: 'v3' })] },
+          has_continuation: false,
+        }),
+      }),
+    });
+    const source = new InnerTubeSource({ pageIntervalMs: 10 });
+
+    const start = Date.now();
+    const songs = await source.searchSongs('x', 3);
+    const elapsed = Date.now() - start;
+
+    expect(songs.map(song => song.id)).toEqual(['v1', 'v2', 'v3']);
+    expect(elapsed).toBeGreaterThanOrEqual(20);
   });
 
   it('drops non-song and incomplete items from song results', async () => {
@@ -449,5 +581,31 @@ describe('InnerTubeSource', () => {
     const song = await source.getSong('video-1');
 
     expect(song?.id).toBe('video-1');
+  });
+});
+
+describe('bootstrapVisitorData', () => {
+  const fakeSession = (visitorData?: string) => ({
+    session: { context: { client: { visitorData } } },
+  });
+
+  it('returns the visitor data from the probe session', async () => {
+    const visitorData = await bootstrapVisitorData(
+      async () => fakeSession('probe-visitor') as never,
+    );
+
+    expect(visitorData).toBe('probe-visitor');
+  });
+
+  it('throws when the probe session has no visitor data', async () => {
+    await expect(bootstrapVisitorData(async () => fakeSession() as never)).rejects.toThrow(
+      'visitor data',
+    );
+  });
+
+  it('throws when the visitor data is empty', async () => {
+    await expect(bootstrapVisitorData(async () => fakeSession('') as never)).rejects.toThrow(
+      'visitor data',
+    );
   });
 });

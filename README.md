@@ -45,9 +45,13 @@ that gap: point your client's MusicBrainz server at it and the metadata shows up
   per-entity validation
 - Cover Art Archive-compatible cover routes (`/release/<mbid>/front` and friends)
   served straight from YouTube Music's album art
-- Built to not get banned: upstream caching with request coalescing, serialized
-  YouTube rate limiting, retries with exponential backoff, and per-IP HTTP rate limiting
-- Ships as a hardened Docker image: compiled single binary, non-root user, healthcheck
+- Built to not get banned: zero-config identity that bootstraps a real visitor
+  data and auto-mints/refreshes PO tokens, browser impersonation (Chrome TLS
+  fingerprint via [impit](https://github.com/apify/impit)) on every outbound
+  request, plus upstream caching with request coalescing, serialized YouTube
+  rate limiting, retries with exponential backoff, and per-IP HTTP rate limiting
+- Ships as a hardened Docker image: compiled bundle plus minimal runtime deps
+  (jsdom, impit's native binding), non-root user, healthcheck
 - 100% coverage enforced — lint, typecheck, and the coverage gate run in CI
 
 ## Stack
@@ -56,6 +60,9 @@ that gap: point your client's MusicBrainz server at it and the metadata shows up
 [![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?style=for-the-badge&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![Biome](https://img.shields.io/badge/Biome-60A5FA?style=for-the-badge&logo=biome&logoColor=white)](https://biomejs.dev/)
 [![youtube.js](https://img.shields.io/badge/youtubei.js-FF0000?style=for-the-badge&logo=youtube&logoColor=white)](https://github.com/LuanRT/YouTube.js)
+[![bgutils-js](https://img.shields.io/badge/bgutils--js-24292F?style=for-the-badge)](https://github.com/LuanRT/BgUtils)
+[![impit](https://img.shields.io/badge/impit-F86606?style=for-the-badge)](https://github.com/apify/impit)
+[![jsdom](https://img.shields.io/badge/jsdom-383307?style=for-the-badge)](https://jsdom.github.io/jsdom/)
 [![SQLite](https://img.shields.io/badge/SQLite-003B57?style=for-the-badge&logo=sqlite&logoColor=white)](https://www.sqlite.org/)
 
 - [Bun](https://bun.sh) runtime and test runner (`bun test`) — Bun ≥ 1.2 required
@@ -63,6 +70,12 @@ that gap: point your client's MusicBrainz server at it and the metadata shows up
 - [Biome](https://biomejs.dev) for linting and formatting
 - [youtube.js](https://www.ytjs.dev) (InnerTube) as the data source — YouTube Music
   client only, no main-YouTube endpoints
+- [bgutils-js](https://github.com/LuanRT/BgUtils) for minting Proof of Origin tokens
+  against BotGuard
+- [impit](https://github.com/apify/impit) for browser impersonation — Chrome TLS
+  fingerprint and headers on outbound requests
+- [jsdom](https://github.com/jsdom/jsdom) as the DOM shim that runs BotGuard's
+  interpreter when minting PO tokens
 - `bun:sqlite` for the persistent, deterministic MBID store
 
 ## Quick start
@@ -122,6 +135,7 @@ curl 'http://127.0.0.1:3000/ws/2/recording?query=recording:"Roygbiv" AND artist:
 | `bun run test:coverage` | Run tests with 100% coverage gate        |
 | `bun run test:watch`    | Run tests in watch mode                  |
 | `bun run test:live`     | Run live tests against the real YouTube  |
+| `bun run gen:potoken`   | Mint a fresh PO token for YTMB_PO_TOKEN  |
 | `bun run preflight`     | Everything: check + typecheck + coverage |
 
 The coverage gate is enforced in `bunfig.toml` — every file must hit 100% lines,
@@ -136,18 +150,41 @@ Configuration is read from the environment:
 | `YTMB_HOST`             | `127.0.0.1`           | Bind address                        |
 | `YTMB_PORT`             | `3000`                | HTTP port                           |
 | `YTMB_CACHE_TTL`        | `3600`                | Upstream response TTL (seconds)     |
-| `YTMB_YT_RATE_LIMIT_MS` | `1000`                | Min interval between YT calls       |
+| `YTMB_YT_RATE_LIMIT_MS` | `1000`                | Min interval between YT calls (incl. paged continuations) |
 | `YTMB_YT_RETRIES`       | `2`                   | Retries for transient YT failures   |
 | `YTMB_YT_BACKOFF_MS`    | `250`                 | Retry backoff base (exponential)    |
 | `YTMB_HTTP_RATE_LIMIT`  | `10`                  | Per-IP requests/sec (0 disables)    |
-| `YTMB_VISITOR_DATA`     | unset                 | Persistent InnerTube visitor data   |
-| `YTMB_COOKIE`           | unset                 | YouTube cookies (for authenticated) |
-| `YTMB_PO_TOKEN`         | unset                 | Proof-of-origin token               |
+| `YTMB_VISITOR_DATA`     | unset                 | Optional: pin a visitor data        |
+| `YTMB_COOKIE`           | unset                 | Optional: YouTube cookies (authenticated) |
+| `YTMB_PO_TOKEN`         | unset                 | Optional: pin a static PO token     |
 | `YTMB_DB_PATH`          | `./data/ytmbrainz.db` | MBID store (SQLite)                 |
 
-YouTube may throw bot walls on unauthenticated requests. If that happens, provide
-`YTMB_VISITOR_DATA` (and optionally `YTMB_COOKIE` / `YTMB_PO_TOKEN`) from your own
-logged-in YouTube session.
+## Bot walls & identity
+
+ytmbrainz works out of the box: on first use it bootstraps a real visitor
+data from YouTube and mints Proof of Origin tokens bound to it (via
+[BgUtils](https://github.com/LuanRT/BgUtils)), auto-refreshing them as they
+expire so the session never goes stale. Every outbound request — InnerTube
+calls, the bootstrap session, and the BotGuard attestation — is sent through
+a client that impersonates a real Chrome browser at the TLS fingerprint and
+header level (via [impit](https://github.com/apify/impit)), falling back to
+the native fetch if the native binding is unavailable. No `YTMB_*` identity
+configuration is required.
+
+The identity variables are **optional overrides** for cases where you want to
+pin a specific identity (for example a logged-in YouTube session):
+
+- `YTMB_VISITOR_DATA` — a persistent visitor data string.
+- `YTMB_COOKIE` — YouTube cookies, for authenticated requests.
+- `YTMB_PO_TOKEN` — a static PO token. When set, the server uses it as-is and
+  skips auto-minting.
+
+For power users, `bun run gen:potoken` mints a fresh PO token bound to a given
+visitor data for manual setup:
+
+```sh
+YTMB_VISITOR_DATA=... bun run gen:potoken   # -> put the output in YTMB_PO_TOKEN
+```
 
 ## API
 
@@ -212,9 +249,10 @@ The image is built in three stages:
 
 1. **deps** — installs with the frozen lockfile
 2. **build** — runs the full preflight gate (lint, typecheck, 100% coverage tests),
-   then compiles `src/index.ts` into a standalone binary
-3. **runtime** — ships only the binary, runs as an unprivileged `ytmbrainz` user,
-   with a `/health` healthcheck
+   then compiles `src/index.ts` into a bundle (keeping `jsdom` external)
+3. **runtime** — installs the minimal production deps (jsdom and impit's native
+   binding, which must be present at runtime), copies the built bundle, runs as
+   an unprivileged `ytmbrainz` user, with a `/health` healthcheck
 
 Images are published to GHCR (`ghcr.io/yasogan/ytmbrainz`) on `v*` tags.
 

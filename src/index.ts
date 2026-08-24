@@ -1,3 +1,4 @@
+import { BgUtilsTokenMinter } from '@/adapters/bgutils';
 import { InnerTubeSource } from '@/adapters/innertube';
 import { loadConfig } from '@/core/config';
 import { MbidStore } from '@/core/mbid';
@@ -19,9 +20,14 @@ const source = new CachingSource(
   new RetryingSource(
     new RateLimitedSource(
       new InnerTubeSource({
+        // Optional overrides: pin an identity or hand over a static token.
+        // Without them the source bootstraps its own visitor data and mints
+        // PO tokens, so the server works out of the box.
         ...(config.visitorData !== null && { visitorData: config.visitorData }),
         ...(config.cookie !== null && { cookie: config.cookie }),
         ...(config.poToken !== null && { poToken: config.poToken }),
+        ...(config.poToken === null && { minter: new BgUtilsTokenMinter() }),
+        pageIntervalMs: config.ytMinIntervalMs,
       }),
       config.ytMinIntervalMs,
     ),

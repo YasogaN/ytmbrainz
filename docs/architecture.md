@@ -33,12 +33,12 @@ YouTube Music (InnerTube)
 
 | Layer           | Files                     | Responsibility                                   |
 | --------------- | ------------------------- | ------------------------------------------------ |
-| `src/core`      | `entities.ts`, `mbid.ts`, `config.ts` | entity model, MBID generation + store, env config |
+| `src/core`      | `entities.ts`, `mbid.ts`, `config.ts`, `potoken.ts` | entity model, MBID generation + store, env config, PO token lifecycle |
 | `src/ws`        | `app.ts`, `router.ts`, `params.ts`, `format.ts`, `errors.ts`, `inc.ts`, `services/*` | HTTP surface: routing, query params, formats, error shapes, per-entity handlers |
 | `src/caa`       | `router.ts`, `artwork.ts`, `handler.ts` | Cover Art Archive compatible cover routes backed by album art |
 | `src/query`     | `parser.ts`, `translate.ts` | Lucene tokenizer/parser, and translation of clauses into search text + local filters |
 | `src/mappers`   | `artist.ts`, `recording.ts`, `release.ts`, `releaseGroup.ts`, `url.ts`, `credit.ts`, `type.ts` | map normalized YouTube shapes to the entity model |
-| `src/adapters`  | `innertube.ts`, `source.ts`, `types.ts`, `errors.ts`, `fake.ts` | the `YouTubeSource` boundary, the InnerTube adapter, and a fake for tests |
+| `src/adapters`  | `innertube.ts`, `http.ts`, `bgutils.ts`, `source.ts`, `types.ts`, `errors.ts`, `fake.ts` | the `YouTubeSource` boundary, the InnerTube adapter, browser-impersonating HTTP client, PO token minter, and a fake for tests |
 | `src/server`    | `cache.ts`, `rateLimit.ts`, `retry.ts`, `httpRateLimit.ts` | caching, rate limiting, retries — wrapped around the source |
 | `src/serializers` | `json.ts`, `xml.ts`      | entity model -> MusicBrainz JSON / MMD-2.0 XML |
 
@@ -88,8 +88,18 @@ wrapped by three decorators in `src/index.ts`, innermost first:
 CachingSource(RetryingSource(RateLimitedSource(InnerTubeSource)))
 ```
 
+Before the first upstream call the InnerTube adapter bootstraps a real visitor
+data from YouTube and mints a Proof of Origin token bound to it, then recreates
+the session whenever the token is refreshed (`adapters/bgutils.ts` mints tokens
+via BotGuard, `core/potoken.ts` caches and auto-refreshes them). Every outbound
+request — the InnerTube session, the bootstrap session, and the BotGuard
+attestation — is sent through `adapters/http.ts`, a browser-impersonating
+(Chrome TLS fingerprint via impit) fetch client.
+
 1. **`RateLimitedSource`** — serializes all upstream calls through one queue so
-   no two requests hit YouTube closer than `YTMB_YT_RATE_LIMIT_MS` apart.
+   no two requests hit YouTube closer than `YTMB_YT_RATE_LIMIT_MS` apart. The
+   InnerTube adapter paces continuation page fetches with the same interval, so
+   a paged search does not burst requests at YouTube.
 2. **`RetryingSource`** — retries transient failures (network errors, 429, 5xx)
    with exponential backoff. Bot walls and missing entities pass through
    immediately.

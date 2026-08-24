@@ -1,5 +1,6 @@
 import { type Clients, ClientType, Innertube, type YTMusic, type YTNodes } from 'youtubei.js';
 import { toNotFoundOrThrow } from '@/adapters/errors';
+import { browserFetch } from '@/adapters/http';
 import type { YouTubeSource } from '@/adapters/source';
 import type {
   YtAlbum,
@@ -9,11 +10,27 @@ import type {
   YtImage,
   YtTrack,
 } from '@/adapters/types';
+import { PoTokenGenerator, type PoTokenMinter } from '@/core/potoken';
 
 export interface InnerTubeOptions {
   cookie?: string;
   visitorData?: string;
   poToken?: string;
+  /** Minimum gap between continuation page fetches (ms). 0 disables pacing. */
+  pageIntervalMs?: number;
+  /**
+   * Auto-mints and refreshes PO tokens bound to the resolved visitor data,
+   * so the session keeps a valid attestation without manual rotation.
+   */
+  minter?: PoTokenMinter;
+  /** Override for tests. Defaults to the real bootstrap session. */
+  bootstrapVisitorData?: () => Promise<string>;
+  /** Fetch used for all InnerTube requests. Defaults to browser impersonation. */
+  fetchFunction?: typeof fetch;
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise(resolve => setTimeout(resolve, ms));
 }
 
 interface RunLike {
@@ -177,12 +194,15 @@ const MAX_PAGES = 10;
 /**
  * Fetches search results across continuation pages until `limit` items are
  * collected (or the results are exhausted). The first page is the initial
- * search response; subsequent pages come from its continuation token.
+ * search response; subsequent pages come from its continuation token, each
+ * spaced by `pageIntervalMs` so a paged search does not burst requests at
+ * YouTube.
  */
 async function collectPages(
   search: YTMusic.Search,
   itemsOf: (page: SearchPage) => readonly unknown[] | undefined,
   limit: number,
+  pageIntervalMs: number,
 ): Promise<unknown[]> {
   const items: unknown[] = [];
   let page: SearchPage = search;
@@ -198,6 +218,9 @@ async function collectPages(
     }
     if (!page.has_continuation) {
       return items;
+    }
+    if (pageIntervalMs > 0) {
+      await sleep(pageIntervalMs);
     }
     page = await page.getContinuation();
   }
@@ -219,24 +242,95 @@ function shelfItemsOf(page: SearchPage, kind: 'song' | 'album' | 'artist') {
 }
 
 /**
+ * Fetches a real visitor data from YouTube so requests carry a Google-assigned
+ * identity instead of a random locally generated one. The probe session is
+ * created without `generate_session_locally`, which makes youtubei.js fetch
+ * session data from `youtube.com/sw.js_data`.
+ */
+export async function bootstrapVisitorData(
+  createSession: () => Promise<Innertube> = () =>
+    Innertube.create({
+      client_type: ClientType.MUSIC,
+      retrieve_player: false,
+      fetch: browserFetch(),
+    }),
+): Promise<string> {
+  const session = await createSession();
+  const visitorData = session.session?.context?.client?.visitorData;
+  if (visitorData === undefined || visitorData === '') {
+    throw new Error('Could not bootstrap a visitor data');
+  }
+  return visitorData;
+}
+
+/**
  * Fetches normalized metadata from YouTube Music through youtube.js.
  */
 export class InnerTubeSource implements YouTubeSource {
-  private readonly session: Promise<Innertube>;
+  private readonly options: InnerTubeOptions;
+  private readonly pageIntervalMs: number;
+  private readonly bootstrap: () => Promise<string>;
+  private session: Promise<Innertube> | null = null;
+  private sessionToken: string | null = null;
+  private bootstrapPromise: Promise<string> | null = null;
+  private tokenGenerator: PoTokenGenerator | null = null;
 
   constructor(options: InnerTubeOptions = {}) {
-    this.session = Innertube.create({
+    this.options = options;
+    this.pageIntervalMs = options.pageIntervalMs ?? 0;
+    this.bootstrap = options.bootstrapVisitorData ?? bootstrapVisitorData;
+  }
+
+  private async resolveVisitorData(): Promise<string> {
+    if (this.options.visitorData !== undefined) {
+      return this.options.visitorData;
+    }
+    if (this.bootstrapPromise === null) {
+      this.bootstrapPromise = this.bootstrap();
+    }
+    return this.bootstrapPromise;
+  }
+
+  private async resolveToken(): Promise<string | null> {
+    if (this.options.poToken !== undefined) {
+      return this.options.poToken;
+    }
+    if (this.options.minter === undefined) {
+      return null;
+    }
+    if (this.tokenGenerator === null) {
+      const visitorData = await this.resolveVisitorData();
+      this.tokenGenerator = new PoTokenGenerator(visitorData, {
+        minter: this.options.minter,
+      });
+    }
+    return this.tokenGenerator.getToken();
+  }
+
+  private async ensureSession(): Promise<Innertube> {
+    const visitorData = await this.resolveVisitorData();
+    const token = await this.resolveToken();
+    if (this.session === null || token !== this.sessionToken) {
+      this.sessionToken = token;
+      this.session = this.createSession(token, visitorData);
+    }
+    return this.session;
+  }
+
+  private createSession(poToken: string | null, visitorData: string): Promise<Innertube> {
+    return Innertube.create({
       client_type: ClientType.MUSIC,
       retrieve_player: false,
       generate_session_locally: true,
-      ...(options.cookie !== undefined && { cookie: options.cookie }),
-      ...(options.visitorData !== undefined && { visitor_data: options.visitorData }),
-      ...(options.poToken !== undefined && { po_token: options.poToken }),
+      fetch: this.options.fetchFunction ?? browserFetch(),
+      ...(this.options.cookie !== undefined && { cookie: this.options.cookie }),
+      visitor_data: visitorData,
+      ...(poToken !== null && { po_token: poToken }),
     });
   }
 
   private async musicClient(): Promise<Clients.Music> {
-    const yt = await this.session;
+    const yt = await this.ensureSession();
     return yt.music;
   }
 
@@ -247,6 +341,7 @@ export class InnerTubeSource implements YouTubeSource {
       search,
       page => shelfItemsOf(page, 'song'),
       limit ?? Number.POSITIVE_INFINITY,
+      this.pageIntervalMs,
     );
     return pages
       .map(item => trackFromItem(item as TrackItemLike))
@@ -260,6 +355,7 @@ export class InnerTubeSource implements YouTubeSource {
       search,
       page => shelfItemsOf(page, 'album'),
       limit ?? Number.POSITIVE_INFINITY,
+      this.pageIntervalMs,
     );
     return pages
       .map(item => albumRefFromItem(item as AlbumRefItemLike))
@@ -273,6 +369,7 @@ export class InnerTubeSource implements YouTubeSource {
       search,
       page => shelfItemsOf(page, 'artist'),
       limit ?? Number.POSITIVE_INFINITY,
+      this.pageIntervalMs,
     );
     return pages
       .map(item => artistFromItem(item as { id?: string; name?: string }))

@@ -1,13 +1,11 @@
 import { describe, expect, it } from 'bun:test';
-import { InnerTubeSource } from '@/adapters/innertube';
+import { sharedSource } from './helpers';
 
 const runLive = Boolean(process.env.RUN_LIVE);
 
-const createSource = () => new InnerTubeSource();
-
 describe.skipIf(!runLive)('InnerTubeSource (live)', () => {
   it('searches songs with durations and resolves the song detail', async () => {
-    const source = createSource();
+    const source = sharedSource;
 
     const songs = await source.searchSongs('Boards of Canada Roygbiv');
     expect(songs.length).toBeGreaterThan(0);
@@ -21,7 +19,7 @@ describe.skipIf(!runLive)('InnerTubeSource (live)', () => {
   }, 60_000);
 
   it('resolves an album and its tracks', async () => {
-    const source = createSource();
+    const source = sharedSource;
 
     const albums = await source.searchAlbums('Boards of Canada Music Has the Right');
     expect(albums.length).toBeGreaterThan(0);
@@ -37,7 +35,7 @@ describe.skipIf(!runLive)('InnerTubeSource (live)', () => {
   }, 60_000);
 
   it('resolves an artist page', async () => {
-    const source = createSource();
+    const source = sharedSource;
 
     const artists = await source.searchArtists('Boards of Canada');
     expect(artists.length).toBeGreaterThan(0);
