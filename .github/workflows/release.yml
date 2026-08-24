@@ -4,28 +4,139 @@ on:
   push:
     tags: ["v[0-9]+.[0-9]+.[0-9]+"]
   workflow_dispatch:
+    inputs:
+      tag:
+        description: "Version tag to build and push. Defaults to the current ref name."
+        required: false
+        type: string
+
+# Serialize runs for the same ref so a tag moved by the version bump does not
+# race the run it triggers.
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
+  # Job 1 — keep package.json in sync with the tag being released.
+  #
+  # On a tag push this job bumps package.json to the tag version, commits it to
+  # main, and moves the tag onto the bumped commit so the released image carries
+  # the correct version. Moving the tag triggers a second run of this workflow:
+  # in that run the version already matches (this job no-ops, so there is no
+  # infinite loop) and the release job actually publishes — the first, stale run
+  # stands down thanks to the guard in the release job.
+  update-version:
+    name: Bump package.json to tag version
+    if: startsWith(github.ref, 'refs/tags/')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    outputs:
+      bumped: ${{ steps.check.outputs.bumped }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Resolve version from tag
+        id: resolve
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          if ! [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::Ref '$GITHUB_REF_NAME' is not a vX.Y.Z tag."
+            exit 1
+          fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Check whether package.json is already in sync
+        id: check
+        run: |
+          CURRENT="$(node -p "require('./package.json').version")"
+          if [ "$CURRENT" = "${{ steps.resolve.outputs.version }}" ]; then
+            echo "bumped=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "bumped=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Bump package.json version
+        if: steps.check.outputs.bumped == 'true'
+        run: |
+          node -e "
+            const fs = require('fs');
+            const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
+            pkg.version = '${{ steps.resolve.outputs.version }}';
+            fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2) + '\n');
+          "
+
+      - name: Commit and push the version bump
+        if: steps.check.outputs.bumped == 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add package.json
+          git commit -m "chore: bump version to ${{ steps.resolve.outputs.version }}"
+          git push origin HEAD:main
+
+      - name: Move the tag onto the bumped commit
+        if: steps.check.outputs.bumped == 'true'
+        run: |
+          git tag -f "$GITHUB_REF_NAME"
+          git push --force origin "$GITHUB_REF_NAME"
+
+  # Job 2 — the original release pipeline: build the image, push it to GHCR,
+  # and create the GitHub release. For tag pushes it only publishes when this
+  # run's SHA still matches the tag, so the stale run (the one that moved the
+  # tag) stands down and the run re-triggered by the tag move does the release.
   release:
+    name: Build and publish
+    needs: update-version
+    # Also run when the version job was skipped (manual dispatch on a branch).
+    if: ${{ !cancelled() && (needs.update-version.result == 'success' || needs.update-version.result == 'skipped') }}
     runs-on: ubuntu-latest
     permissions:
       contents: write
       packages: write
+    env:
+      INPUT_TAG: ${{ inputs.tag }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Fetch latest tags
+        run: git fetch origin --force --tags
+
+      - name: Guard stale tag runs
+        id: guard
+        run: |
+          skip=false
+          if [[ "$GITHUB_REF" == refs/tags/* ]]; then
+            expected="$(git rev-parse "refs/tags/${GITHUB_REF_NAME}")"
+            if [ "$expected" != "$GITHUB_SHA" ]; then
+              echo "::notice::Tag was moved by the version bump; this run is stale. Skipping."
+              skip=true
+            fi
+          fi
+          echo "skip=$skip" >> "$GITHUB_OUTPUT"
+
+      - name: Derive image and tag
+        id: tag
+        if: steps.guard.outputs.skip == 'false'
+        run: |
+          # GHCR names must be lowercase; ${VAR,,} lowercases the repo ref.
+          echo "image=ghcr.io/${GITHUB_REPOSITORY,,}" >> "$GITHUB_OUTPUT"
+          echo "tag=${INPUT_TAG:-$GITHUB_REF_NAME}" >> "$GITHUB_OUTPUT"
+
       - uses: docker/setup-buildx-action@v3
+        if: steps.guard.outputs.skip == 'false'
+
       - uses: docker/login-action@v3
+        if: steps.guard.outputs.skip == 'false'
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-      - name: Derive image and tag
-        id: tag
-        run: |
-          # GHCR names must be lowercase; ${VAR,,} lowercases the repo ref.
-          echo "image=ghcr.io/${GITHUB_REPOSITORY,,}" >> "$GITHUB_OUTPUT"
-          echo "tag=${GITHUB_REF_NAME}" >> "$GITHUB_OUTPUT"
+
       - uses: docker/build-push-action@v6
+        if: steps.guard.outputs.skip == 'false'
         with:
           context: .
           push: true
@@ -34,7 +145,10 @@ jobs:
             ${{ steps.tag.outputs.image }}:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
       - uses: softprops/action-gh-release@v3
+        if: steps.guard.outputs.skip == 'false'
         with:
+          tag_name: ${{ steps.tag.outputs.tag }}
           generate_release_notes: true
-          name: ${{ github.ref_name }}
+          name: ${{ steps.tag.outputs.tag }}
