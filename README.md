@@ -60,6 +60,9 @@ that gap: point your client's MusicBrainz server at it and the metadata shows up
 [![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?style=for-the-badge&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![Biome](https://img.shields.io/badge/Biome-60A5FA?style=for-the-badge&logo=biome&logoColor=white)](https://biomejs.dev/)
 [![youtube.js](https://img.shields.io/badge/youtubei.js-FF0000?style=for-the-badge&logo=youtube&logoColor=white)](https://github.com/LuanRT/YouTube.js)
+[![bgutils-js](https://img.shields.io/badge/bgutils--js-24292F?style=for-the-badge)](https://github.com/LuanRT/BgUtils)
+[![impit](https://img.shields.io/badge/impit-F86606?style=for-the-badge)](https://github.com/apify/impit)
+[![jsdom](https://img.shields.io/badge/jsdom-383307?style=for-the-badge)](https://jsdom.github.io/jsdom/)
 [![SQLite](https://img.shields.io/badge/SQLite-003B57?style=for-the-badge&logo=sqlite&logoColor=white)](https://www.sqlite.org/)
 
 - [Bun](https://bun.sh) runtime and test runner (`bun test`) — Bun ≥ 1.2 required
@@ -69,9 +72,10 @@ that gap: point your client's MusicBrainz server at it and the metadata shows up
   client only, no main-YouTube endpoints
 - [bgutils-js](https://github.com/LuanRT/BgUtils) for minting Proof of Origin tokens
   against BotGuard
-- [impit](https://github.com/apify/impit) for browser impersonation (Chrome TLS
-  fingerprint) on outbound requests, and [jsdom](https://github.com/jsdom/jsdom)
-  as the DOM shim for BotGuard's interpreter
+- [impit](https://github.com/apify/impit) for browser impersonation — Chrome TLS
+  fingerprint and headers on outbound requests
+- [jsdom](https://github.com/jsdom/jsdom) as the DOM shim that runs BotGuard's
+  interpreter when minting PO tokens
 - `bun:sqlite` for the persistent, deterministic MBID store
 
 ## Quick start
