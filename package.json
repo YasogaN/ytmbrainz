@@ -1,6 +1,6 @@
 {
   "name": "ytmbrainz",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "MusicBrainz-compatible metadata server backed by YouTube Music (InnerTube)",
   "license": "MIT",
   "type": "module",
